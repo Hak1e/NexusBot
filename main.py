@@ -1,16 +1,31 @@
-import hikari
-import lightbulb
-from dotenv import load_dotenv
+import disnake
+from disnake.ext import commands
 import os
+from dotenv import load_dotenv
+
+
 
 load_dotenv()
-intents = hikari.Intents.ALL
-bot = lightbulb.BotApp(
-    token=os.getenv("TOKEN"),
-    intents=intents,
-    banner=None
-)
-bot.load_extensions_from("./extensions/")
+intents = disnake.Intents.guilds | disnake.Intents.emojis
+
+    # | disnake.Intents.reactions
+    #| disnake.Intents.messages
+
+
+bot = commands.InteractionBot(intents=intents)
+bot.load_extensions("./cogs/")
+
+
+@bot.slash_command()
+async def ping(ctx: disnake.CommandInteraction):
+    """Проверить, находится ли бот в сети"""
+    await ctx.send("Pong!")
+
+
+@bot.event
+async def on_ready():
+    print(f"{bot.user} has started!")
+
 
 if __name__ == "__main__":
-    bot.run()
+    bot.run(os.getenv("TOKEN"))
