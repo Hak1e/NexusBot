@@ -15,7 +15,7 @@ emoji_dislike = os.getenv("EMOJI_DISLIKE")
 
 async def send_embed(
         ctx: disnake.CommandInteraction,
-        bot: commands.Bot,
+        bot: commands.InteractionBot,
         image: disnake.Attachment,
         description: str,
         channel_id,
@@ -41,6 +41,11 @@ class SendMessages(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    @commands.slash_command()
+    async def ping(self, ctx: disnake.CommandInteraction):
+        """Проверить, находится ли бот в сети"""
+        await ctx.send("Pong!")
+
 
     @commands.slash_command()
     async def say(
@@ -49,7 +54,7 @@ class SendMessages(commands.Cog):
             message: str,
             channel: Optional[disnake.TextChannel] = None
     ):
-        """Write message from bot"""
+        """Написать сообщение от лица бота"""
         channel = channel or ctx.channel
         await channel.send(message)
 
