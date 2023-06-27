@@ -1,34 +1,32 @@
 import disnake
 import os
 from dotenv import load_dotenv
-import asyncio
 import asyncpg
-import logging
-import typing as t
+import typing
+
+load_dotenv()
 
 
 class Database:
     def __init__(self):
         self.host = os.getenv("HOST")
-        self.port: int = os.getenv("PORT") or 5432
+        self.port = int(os.getenv("PORT"))
         self.user = os.getenv("USER")
         self.password = os.getenv("PASSWORD")
         self.db_name = os.getenv("DATABASE_NAME")
-        # self.conn = await asyncpg.connect(
-        #     user=self.user,
-        #     password=self.password,
-        #     database=self.db_name,
-        #     host=self.host
-        # )
+        self._pool: typing.Optional[asyncpg.Pool] = None
         self.is_closed: bool = False
 
-
     async def connect(self):
-        conn = await asyncpg.connect("postgresql://pswdasname@localhost/orphea")
-        row = await conn.fetchrow(
-            "SELECT * FROM guild"
-        )
-        print(f"Row:\n{row}")
-        await conn.close()
+        self._pool = await asyncpg.create_pool(
+            f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.db_name}")
+        self.is_closed = False
 
+    async def close(self):
+        if not self.is_closed:
+            await self._pool.close()
+            self.is_closed = True
+
+    def pool(self):
+        return self._pool
 

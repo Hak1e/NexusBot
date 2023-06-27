@@ -5,10 +5,10 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-art_channel_id = int(os.getenv("ART_CHANNEL_ID"))  # RU HOTS, Искусство
-artist_role_id = int(os.getenv("ARTIST_ROLE_ID"))  # RU HOTS, Художник
-humor_channel_id = int(os.getenv("HUMOR_CHANNEL_ID"))  # RU HOTS, Юмор
-humorist_role_id = int(os.getenv("HUMORIST_ROLE_ID"))  # RU HOTS, Юморист
+art_channel_id = int(os.getenv("ART_CHANNEL_ID"))
+artist_role_id = int(os.getenv("ARTIST_ROLE_ID"))
+humor_channel_id = int(os.getenv("HUMOR_CHANNEL_ID"))
+humorist_role_id = int(os.getenv("HUMORIST_ROLE_ID"))
 emoji_like = os.getenv("EMOJI_LIKE")
 emoji_dislike = os.getenv("EMOJI_DISLIKE")
 
@@ -38,7 +38,7 @@ async def send_embed(
 
 
 class SendMessages(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
 
     @commands.slash_command()
@@ -58,8 +58,7 @@ class SendMessages(commands.Cog):
         channel = channel or ctx.channel
         await channel.send(message)
 
-        await ctx.send("Message sent", ephemeral=True)
-
+        await ctx.send("Сообщение отправлено", ephemeral=True)
 
     @commands.slash_command()
     async def art(
