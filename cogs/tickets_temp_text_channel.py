@@ -3,10 +3,11 @@ import disnake
 from disnake.ext import commands
 import config
 import json
-from core.bot import Nexus
 import typing as t
+from core.db import Database
 
-file_name = "settings.json"
+
+
 class CloseButton(disnake.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -26,11 +27,58 @@ class CloseButton(disnake.ui.View):
         await channel.delete()
 
 
+
 class ButtonView(disnake.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    # право на управление каналами, ролями
+    @disnake.ui.button(
+        label="Вопрос",
+        style=disnake.ButtonStyle.grey,
+        custom_id="question_button",
+        emoji="❔"
+    )
+    async def question_button(
+            self,
+            button: disnake.ui.Button,
+            ctx: disnake.MessageInteraction
+    ):
+        pass
+
+    @disnake.ui.button(
+        label="Жалоба",
+        style=disnake.ButtonStyle.red,
+        custom_id="report_button",
+        emoji="❕"
+    )
+    async def report_button(
+            self,
+            button: disnake.ui.Button,
+            ctx: disnake.MessageInteraction
+    ):
+        pass
+
+    @disnake.ui.button(
+        label="Предложение",
+        style=disnake.ButtonStyle.blurple,
+        custom_id="offer_button",
+        emoji="📝"
+    )
+    async def offer_button(
+            self,
+            button: disnake.ui.Button,
+            ctx: disnake.MessageInteraction
+    ):
+        pass
+
+
+class Tickets(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.pool: asyncpg.Pool = self.bot.get_pool()
+        self.message_id = None
+        self.channel_id = None
+
     async def create_temp_channel(
             self,
             ctx: disnake.MessageInteraction,
@@ -64,24 +112,11 @@ class ButtonView(disnake.ui.View):
         embed = disnake.Embed(description=f"Чтобы закрыть тикет, нажмите кнопку ниже")
         view = CloseButton()
 
-        await channel.send(
-            embed=embed,
-            view=view
-        )
+        await channel.send(embed=embed, view=view)
         await channel.send(ping_roles)
         await ctx.response.defer()
 
-    @disnake.ui.button(
-        label="Вопрос",
-        style=disnake.ButtonStyle.grey,
-        custom_id="question_button",
-        emoji="❔"
-    )
-    async def question_button(
-            self,
-            button: disnake.ui.Button,
-            ctx: disnake.MessageInteraction
-    ):
+    async def question_channel(self, ctx):
         support_roles = [ctx.guild.get_role(role_id) for role_id in config.add_role_to_question]
         moderation_roles = [ctx.guild.get_role(role_id) for role_id in config.add_role_to_report]
         roles_to_mention = support_roles + moderation_roles
@@ -97,18 +132,7 @@ class ButtonView(disnake.ui.View):
             ping_roles=ping_roles,
             channel_name="вопрос"
         )
-
-    @disnake.ui.button(
-        label="Жалоба",
-        style=disnake.ButtonStyle.red,
-        custom_id="report_button",
-        emoji="❕"
-    )
-    async def report_button(
-            self,
-            button: disnake.ui.Button,
-            ctx: disnake.MessageInteraction
-    ):
+    async def report_channel(self, ctx):
         moderation_roles = [ctx.guild.get_role(role_id) for role_id in config.add_role_to_report]
 
         ping_roles = ""
@@ -122,18 +146,7 @@ class ButtonView(disnake.ui.View):
             ping_roles=ping_roles,
             channel_name="жалоба"
         )
-
-    @disnake.ui.button(
-        label="Предложение",
-        style=disnake.ButtonStyle.blurple,
-        custom_id="offer_button",
-        emoji="📝"
-    )
-    async def offer_button(
-            self,
-            button: disnake.ui.Button,
-            ctx: disnake.MessageInteraction
-    ):
+    async def offer_channel(self, ctx):
         moderation_roles = [ctx.guild.get_role(role_id) for role_id in config.add_role_to_report]
 
         ping_roles = ""
@@ -147,49 +160,26 @@ class ButtonView(disnake.ui.View):
             ping_roles=ping_roles,
             channel_name="предложение"
         )
+    @commands.Cog.listener()
+    async def on_button_click(self, ctx: disnake.MessageInteraction):
+
+        button_id = ctx.component.custom_id
 
 
-class EmbedButtons(commands.Cog):
-    def __init__(
-            self,
-            bot: Nexus
-    ):
-        self.bot = bot
-        self.persistent_views_added = False
-        self.pool: t.Optional[asyncpg.Pool] = None
-        self.message_id = self.load_settings()
-        self.bot.settings = {}
+        if button_id == "question_button":
+            await self.question_channel(ctx)
 
-    async def load_settings(self):
-        async with self.pool.acquire() as conn:
-            query = "SELECT message_with_buttons_id FROM guild_settings WHERE guild_id = $1"
-            result = await conn.fetchval(query, self.bot.guild.id)
-            print(f"Настройки загружены: {result}")
-            return result
+        elif button_id == "report_button":
+            await self.report_channel(ctx)
 
-        # try:
-        #     with open("file_name", "r") as f:
-        #         self.bot.settings = json.load(f)
-        #         self.message_id = self.bot.settings.get("message_id")
-        #
-        #     print(f"Message id: {self.message_id}")
-        #
-        # except FileNotFoundError:
-        #     print("Файл settings.json не найден. Он будет создан при создании сообщения")
-        # except:
-        #     print("Ошибка при чтении файла settings.json")
+        elif button_id == "offer_button":
+            await self.offer_channel(ctx)
 
-    async def save_settings(
-            self,
-            guild_id: int,
-            message_id: int
-    ):
-        async with self.pool.acquire() as conn:
-            query = "INSERT INTO guild_settings (guild_id, message_with_buttons_id)" \
-                    "VALUES ($1, $2)" \
-                    "ON CONFLICT (guild_id) DO UPDATE SET message_with_buttons_id = $2"
-            await conn.execute(query, guild_id, message_id)
-            print(f"Настройки сохранены")
+        elif button_id == "delete_channel_button":
+            channel = ctx.channel
+            await channel.delete()
+
+
 
 
     @commands.slash_command()
@@ -227,24 +217,8 @@ class EmbedButtons(commands.Cog):
         embeds.append(embed2)
         message = await ctx.channel.send(embeds=embeds, view=view)
 
-        # data = {"message_id": message.id}
-        # with open("file_name", "w") as f:
-        #     json.dump(data, f)
-
-        await self.save_settings(ctx.guild.id, message.id)
-
-
-        await ctx.send("Создан embed с кнопками")
-
-    @commands.Cog.listener()
-    async def on_connect(self):
-        print("On_connect в классе с кнопками!")
-        if self.persistent_views_added:
-            return
-
-        self.bot.add_view(ButtonView(), message_id=self.message_id)
-        # self.bot.add_view(ButtonView(), message_id=1121460668558737442)
+        await ctx.send("Создан embed с кнопками", ephemeral=True)
 
 
 def setup(bot):
-    bot.add_cog(EmbedButtons(bot))
+    bot.add_cog(Tickets(bot))

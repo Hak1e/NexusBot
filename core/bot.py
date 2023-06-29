@@ -4,7 +4,7 @@ from asyncpg import Pool
 import os
 from dotenv import load_dotenv
 from core.db import Database
-
+import typing as t
 
 class Nexus(commands.InteractionBot):
     def __init__(self) -> None:
@@ -13,23 +13,21 @@ class Nexus(commands.InteractionBot):
         self._db = Database()
         self._pool = None
         self.bot = commands.InteractionBot
+        self.persistent_views_added = False
 
     async def on_connect(self):
         print("Подключаюсь к базе данных")
         await self._db.connect()
-        self._pool = self._db.pool()
+        self._pool = self._db.get_pool()
         print(f"Подключено")
 
     async def on_ready(self):
         self.bot.load_extensions(self, "./cogs/")
         print(f"Бот {self.user} готов к работе!")
 
-    @property
-    def db(self):
+    def get_db(self):
         return self._db
-
-    @property
-    def pool(self):
+    def get_pool(self):
         return self._pool
 
 
