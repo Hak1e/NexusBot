@@ -2,7 +2,6 @@ import asyncpg
 import disnake
 from disnake.ext import commands
 import config
-import json
 import typing as t
 from core.db import Database
 
@@ -23,8 +22,7 @@ class CloseButton(disnake.ui.View):
             button: disnake.ui.Button,
             ctx: disnake.MessageInteraction
     ):
-        channel = ctx.channel
-        await channel.delete()
+        pass
 
 
 

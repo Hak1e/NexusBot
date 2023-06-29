@@ -40,8 +40,8 @@ class TextChannel(commands.Cog):
         self.bot.settings = {}
 
 
-    @commands.slash_command()
-    async def sedd(
+    # @commands.slash_command()
+    async def test(
             self,
             ctx: disnake.CommandInteraction,
             roles_reverse: bool = False
