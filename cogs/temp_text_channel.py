@@ -3,8 +3,7 @@ import disnake
 from disnake.ext import commands
 import config
 import typing as t
-from core.db import Database
-
+from core.bot import Nexus
 
 
 class CloseButton(disnake.ui.View):
@@ -71,11 +70,13 @@ class ButtonView(disnake.ui.View):
 
 
 class Tickets(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: Nexus):
         self.bot = bot
         self.pool: asyncpg.Pool = self.bot.get_pool()
         self.message_id = None
         self.channel_id = None
+        self.category = 1010799918857850900
+        self.settings_loaded = False
 
     async def create_temp_channel(
             self,
@@ -86,8 +87,7 @@ class Tickets(commands.Cog):
     ):
         guild = ctx.guild
         user = ctx.author
-        category = guild.get_channel(config.text_channel_category_id)
-
+        category = ctx.guild.get_channel(self.category)
         user_overwrite = disnake.PermissionOverwrite()
         user_overwrite.send_messages = True
         user_overwrite.view_channel = True
@@ -120,49 +120,66 @@ class Tickets(commands.Cog):
         roles_to_mention = support_roles + moderation_roles
 
         ping_roles = ""
-        for role in roles_to_mention:
-            ping_roles += f"<@&{role.id}>, "
+        # for role in roles_to_mention:
+        #     ping_roles += f"<@&{role.id}>, "
         ping_roles += f"у <@{ctx.author.id}> имеется вопрос"
 
         await self.create_temp_channel(
             ctx=ctx,
-            roles=roles_to_mention,
+            # roles=roles_to_mention,
+            roles=[],
             ping_roles=ping_roles,
             channel_name="вопрос"
         )
+
     async def report_channel(self, ctx):
         moderation_roles = [ctx.guild.get_role(role_id) for role_id in config.add_role_to_report]
 
         ping_roles = ""
-        for role in moderation_roles:
-            ping_roles += f"<@&{role.id}>, "
+        # for role in moderation_roles:
+        #     ping_roles += f"<@&{role.id}>, "
         ping_roles += f"жалоба от  <@{ctx.author.id}>"
 
         await self.create_temp_channel(
             ctx=ctx,
-            roles=moderation_roles,
+            roles=[],
             ping_roles=ping_roles,
             channel_name="жалоба"
         )
+
     async def offer_channel(self, ctx):
         moderation_roles = [ctx.guild.get_role(role_id) for role_id in config.add_role_to_report]
 
         ping_roles = ""
-        for role in moderation_roles:
-            ping_roles += f"<@&{role.id}>, "
+        # for role in moderation_roles:
+        #     ping_roles += f"<@&{role.id}>, "
         ping_roles += f"<@{ctx.author.id}> хочет что-то предложить!"
 
         await self.create_temp_channel(
             ctx=ctx,
-            roles=moderation_roles,
+            roles=[],
             ping_roles=ping_roles,
             channel_name="предложение"
         )
+
+    async def load_settings(self, guild_id):
+        async with self.pool.acquire() as conn:
+            query = "SELECT temp_text_channel_category_id FROM guild_settings WHERE guild_id = $1"
+            self.category = await conn.fetchval(query, guild_id)
+
+
     @commands.Cog.listener()
     async def on_button_click(self, ctx: disnake.MessageInteraction):
 
         button_id = ctx.component.custom_id
 
+        # if not self.settings_loaded:
+        #     print("Загружаю настройки")
+        #     try:
+        #         await self.load_settings(ctx.guild.id)
+        #         self.settings_loaded = True
+        #     except:
+        #         print(f"Категория не найдена")
 
         if button_id == "question_button":
             await self.question_channel(ctx)
