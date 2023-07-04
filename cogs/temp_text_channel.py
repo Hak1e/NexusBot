@@ -167,7 +167,6 @@ class Tickets(commands.Cog):
             query = "SELECT temp_text_channel_category_id FROM guild_settings WHERE guild_id = $1"
             self.category = await conn.fetchval(query, guild_id)
 
-
     @commands.Cog.listener()
     async def on_button_click(self, ctx: disnake.MessageInteraction):
 

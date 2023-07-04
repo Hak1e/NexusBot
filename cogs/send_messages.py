@@ -7,8 +7,6 @@ import asyncpg
 from core.bot import Nexus
 
 load_dotenv()
-# artist_role_id = int(os.getenv("ARTIST_ROLE_ID"))
-# humorist_role_id = int(os.getenv("HUMORIST_ROLE_ID"))
 emoji_like = os.getenv("EMOJI_LIKE")
 emoji_dislike = os.getenv("EMOJI_DISLIKE")
 
@@ -22,7 +20,11 @@ async def send_embed(
         title: str = None
 ):
     channel = bot.get_channel(channel_id)
-    print(f"Channel: {channel}\nID: {channel_id}")
+
+    if channel is None:
+        await ctx.send("Не удалось найти канал для отправки. Запустите команду `/setup`")
+        return
+
     embed = (
         disnake.Embed(
             title=title if title else None,
@@ -35,7 +37,7 @@ async def send_embed(
     message = await channel.send(embed=embed)
     await message.add_reaction(emoji=emoji_like)
     await message.add_reaction(emoji=emoji_dislike)
-
+    await ctx.send("Сообщение успешно отправлено")
 
 
 class SendMessages(commands.Cog):
@@ -59,7 +61,9 @@ class SendMessages(commands.Cog):
             channel: Optional[disnake.TextChannel] = None
     ):
         """Написать сообщение от лица бота"""
+
         channel = channel or ctx.channel
+
         await channel.send(message)
 
         await ctx.send("Сообщение отправлено", ephemeral=True)
@@ -85,7 +89,7 @@ class SendMessages(commands.Cog):
         async with self.pool.acquire() as conn:
             query = "SELECT art_channel_id FROM guild_settings WHERE guild_id = $1"
             self.art_channel_id = await conn.fetchval(query, ctx.guild.id)
-            self.art_channel_id.get()
+
 
         if author:
             description = f"**Автор:** {author}"
@@ -101,7 +105,6 @@ class SendMessages(commands.Cog):
             description=description,
             channel_id=self.art_channel_id
         )
-        await ctx.send("Арт успешно опубликован!")
 
     @commands.slash_command()
     async def meme(
@@ -123,6 +126,7 @@ class SendMessages(commands.Cog):
             query = "SELECT meme_channel_id FROM guild_settings WHERE guild_id = $1"
             self.meme_channel_id = await conn.fetchval(query, ctx.guild.id)
 
+
         if author:
             description = f"**Автор:** {author}"
         else:
@@ -134,7 +138,6 @@ class SendMessages(commands.Cog):
             description=description,
             channel_id=self.meme_channel_id
         )
-        await ctx.send("Мем успешно опубликован!")
 
 class PingMembersInVoice(commands.Cog):
     def __init__(self, bot: commands.Bot):

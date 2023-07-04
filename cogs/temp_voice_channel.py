@@ -68,7 +68,7 @@ class OnJoinChannel(commands.Cog):
         result = await self.pool.fetchval(query, member.guild.id)
         if result:
             self.created_channels_ids = list(result)
-            print(self.created_channels_ids)
+            # print(self.created_channels_ids)
         else:
             print("Столбец temp_voice_channel_id пуст")
 
@@ -84,11 +84,11 @@ class OnJoinChannel(commands.Cog):
             try:
                 await self.load_settings(member.guild.id)
                 await self.load_created_channels(member)
-                print("Настройки загружены")
+                # print("Настройки загружены")
                 self.settings_loaded = True
             except Exception as e:
-                print(f"Не удалось загрузить настройки сервера. Ошибка: {e}")
-
+                # print(f"Не удалось загрузить настройки сервера. Ошибка: {e}")
+                pass
         if before.channel == current.channel:
             return
 
