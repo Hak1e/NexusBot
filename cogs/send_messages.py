@@ -31,7 +31,7 @@ async def send_embed(
             description=description,
             color=0x3f8fdf
         )
-        .set_footer(text="Для доступа к каналу напишите MACHUKU")
+        .set_footer(text="Для доступа к каналу напишите machuku")
         .set_image(image)
     )
     message = await channel.send(embed=embed)
@@ -156,7 +156,7 @@ class PingMembersInVoice(commands.Cog):
         ctx: command interactions
         bounty: валюта сервера
         """
-        voice_channel_id = ctx.author.voice.create_channel_id.id
+        voice_channel_id = ctx.author.voice.channel.id
         voice_channel = self.bot.get_channel(voice_channel_id)
         members = voice_channel.members
         add_money_to_member = [f".add-money `<@{member.id}>` {bounty}" for member in members]
