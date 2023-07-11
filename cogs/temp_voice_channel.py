@@ -15,7 +15,7 @@ class OnJoinChannel(commands.Cog):
         self.pool: asyncpg.Pool = bot.get_pool()
         self.category_id = None
         self.create_channel_id = None
-        self.settings_loaded = False
+        self.guild_settings_loaded = {}
         self.created_channels_ids = []
 
     async def create_voice_channel(
@@ -23,24 +23,23 @@ class OnJoinChannel(commands.Cog):
             member: disnake.Member,
     ):
         category = member.guild.get_channel(self.category_id)
-        # bot = member.guild.get_member(self.bot.user.id)
         overwrite = disnake.PermissionOverwrite(
             view_channel=True,
             manage_permissions=True,
             manage_channels=True
         )
 
-        channel = await member.guild.create_voice_channel(
+        text_channel = await member.guild.create_voice_channel(
             name=f"{member.name}'s channel",
             category=category,
             overwrites=category.overwrites
         )
-        self.created_channels_ids.append(channel.id)
-        await channel.set_permissions(member, overwrite=overwrite)
+        self.created_channels_ids.append(text_channel.id)
+        await text_channel.set_permissions(member, overwrite=overwrite)
 
-        await member.move_to(channel)
+        await member.move_to(text_channel)
 
-        return channel
+        return text_channel
 
     async def voice_state_log(
             self,
@@ -60,17 +59,21 @@ class OnJoinChannel(commands.Cog):
 
     async def load_settings(self, guild_id):
         async with self.pool.acquire() as conn:
-            query = "SELECT temp_voice_channel_category_id, temp_create_voice_channel FROM guild_settings WHERE guild_id = $1"
-            self.category_id, self.create_channel_id = await conn.fetchrow(query, guild_id)
+            query = "SELECT voice_channel_category_id, create_voice_channel_id " \
+                    "FROM guild_settings " \
+                    "WHERE guild_id = $1"
 
-    async def load_created_channels(self, member: disnake.Member):
-        query = "SELECT temp_voice_channel_id FROM guild_settings WHERE guild_id = $1"
-        result = await self.pool.fetchval(query, member.guild.id)
+            self.category_id, self.create_channel_id = await conn.fetchrow(query, guild_id)
+            # print(f"Loaded settings for guild id {guild_id}\nCategroy id: {self.category_id}\nChannel id: {self.create_channel_id}")
+
+    async def load_created_channels(self, guild_id):
+        query = "SELECT created_voice_channel_ids " \
+                "FROM guild_settings " \
+                "WHERE guild_id = $1"
+
+        result = await self.pool.fetchval(query, guild_id)
         if result:
             self.created_channels_ids = list(result)
-            # print(self.created_channels_ids)
-        else:
-            print("Столбец temp_voice_channel_id пуст")
 
     @commands.Cog.listener()
     async def on_voice_state_update(
@@ -79,16 +82,20 @@ class OnJoinChannel(commands.Cog):
             before: disnake.VoiceState,
             current: disnake.VoiceState,
     ):
+        guild_id = member.guild.id
 
-        if not self.settings_loaded:
+        if guild_id not in self.guild_settings_loaded:
+            self.guild_settings_loaded[guild_id] = False
             try:
-                await self.load_settings(member.guild.id)
-                await self.load_created_channels(member)
-                # print("Настройки загружены")
-                self.settings_loaded = True
+                await self.load_settings(guild_id)
+                await self.load_created_channels(guild_id)
+
+                self.guild_settings_loaded[guild_id] = True
+                # print(f"Настройки для сервера {member.guild.name} загружены")
             except Exception as e:
                 # print(f"Не удалось загрузить настройки сервера. Ошибка: {e}")
                 pass
+
         if before.channel == current.channel:
             return
 
@@ -100,13 +107,14 @@ class OnJoinChannel(commands.Cog):
 
         if current.channel is not None and current.channel.id == self.create_channel_id:
             self.custom_channel = await self.create_voice_channel(member=member)
-            query = "UPDATE guild_settings SET temp_voice_channel_id = array_append(temp_voice_channel_id, $2) WHERE guild_id = $1"
+            query = "UPDATE guild_settings " \
+                    "SET created_voice_channel_ids = array_append(created_voice_channel_ids, $2) " \
+                    "WHERE guild_id = $1"
             await self.pool.execute(
                 query,
                 member.guild.id,
                 self.custom_channel.id
             )
-            print("Созданный канал добавлен в БД")
 
 
         if before.channel is not None and before.channel.id in self.created_channels_ids:
@@ -114,13 +122,14 @@ class OnJoinChannel(commands.Cog):
                 await before.channel.delete()
                 self.created_channels_ids.remove(before.channel.id)
 
-                query = "UPDATE guild_settings SET temp_voice_channel_id = array_remove(temp_voice_channel_id, $2) WHERE guild_id = $1"
+                query = "UPDATE guild_settings SET " \
+                        "created_voice_channel_ids = array_remove(created_voice_channel_ids, $2) " \
+                        "WHERE guild_id = $1"
                 await self.pool.execute(
                     query,
                     member.guild.id,
                     before.channel.id
                 )
-                print("Созданный канал удалён из БД")
 
 
 def setup(bot):
