@@ -1,28 +1,8 @@
 import asyncpg
 import disnake
 from disnake.ext import commands
-import config
-import typing as t
 from core.bot import Nexus
-
-
-class CloseButton(disnake.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @disnake.ui.button(
-        label="Закрыть тикет",
-        style=disnake.ButtonStyle.red,
-        custom_id="delete_channel_button",
-        emoji="❌"
-    )
-    async def delete_channel_button(
-            self,
-            button: disnake.ui.Button,
-            ctx: disnake.MessageInteraction
-    ):
-        pass
-
+from datetime import datetime, timedelta, timezone
 
 
 class ButtonView(disnake.ui.View):
@@ -73,10 +53,11 @@ class Tickets(commands.Cog):
     def __init__(self, bot: Nexus):
         self.bot = bot
         self.pool: asyncpg.Pool = self.bot.get_pool()
-        self.message_id = None
-        self.channel_id = None
-        self.category = 1010799918857850900
+        self.category = None
+        self.roles_id_to_mention = []
         self.settings_loaded = False
+        self.button_cooldown = timedelta(minutes=5)
+        self.button_cooldown_end_time = timedelta(seconds=0)
 
     async def create_temp_channel(
             self,
@@ -108,93 +89,142 @@ class Tickets(commands.Cog):
         )
 
         embed = disnake.Embed(description=f"Чтобы закрыть тикет, нажмите кнопку ниже")
-        view = CloseButton()
 
-        await channel.send(embed=embed, view=view)
+        await channel.send(
+            embed=embed,
+            components=[
+                disnake.ui.Button(
+                    label="Закрыть тикет",
+                    style=disnake.ButtonStyle.red,
+                    custom_id="delete_channel_button",
+                    emoji="❌"
+                )
+            ]
+        )
         await channel.send(ping_roles)
         await ctx.response.defer()
 
+    async def get_roles_and_text(self, ctx, message):
+        roles_to_add = [ctx.guild.get_role(role_id) for role_id in self.roles_id_to_mention]
+
+        roles_to_mention = ""
+        for role in roles_to_add:
+            roles_to_mention += f"{role.mention}, "
+        roles_to_mention += message
+
+        return roles_to_add, roles_to_mention
+
     async def question_channel(self, ctx):
-        support_roles = [ctx.guild.get_role(role_id) for role_id in config.add_role_to_question]
-        moderation_roles = [ctx.guild.get_role(role_id) for role_id in config.add_role_to_report]
-        roles_to_mention = support_roles + moderation_roles
-
-        ping_roles = ""
-        # for role in roles_to_mention:
-        #     ping_roles += f"<@&{role.id}>, "
-        ping_roles += f"у <@{ctx.author.id}> имеется вопрос"
-
+        roles_to_add, roles_to_mention = \
+            await self.get_roles_and_text(ctx, f"вопрос от {ctx.author.mention}")
         await self.create_temp_channel(
             ctx=ctx,
-            # roles=roles_to_mention,
-            roles=[],
-            ping_roles=ping_roles,
+            roles=roles_to_add,
+            ping_roles=roles_to_mention,
             channel_name="вопрос"
         )
 
     async def report_channel(self, ctx):
-        moderation_roles = [ctx.guild.get_role(role_id) for role_id in config.add_role_to_report]
-
-        ping_roles = ""
-        # for role in moderation_roles:
-        #     ping_roles += f"<@&{role.id}>, "
-        ping_roles += f"жалоба от  <@{ctx.author.id}>"
-
+        roles_to_add, roles_to_mention = \
+            await self.get_roles_and_text(ctx, f"жалоба от {ctx.author.mention}")
         await self.create_temp_channel(
             ctx=ctx,
-            roles=[],
-            ping_roles=ping_roles,
+            roles=roles_to_add,
+            ping_roles=roles_to_mention,
             channel_name="жалоба"
         )
 
     async def offer_channel(self, ctx):
-        moderation_roles = [ctx.guild.get_role(role_id) for role_id in config.add_role_to_report]
-
-        ping_roles = ""
-        # for role in moderation_roles:
-        #     ping_roles += f"<@&{role.id}>, "
-        ping_roles += f"<@{ctx.author.id}> хочет что-то предложить!"
+        roles_to_add, roles_to_mention = \
+            await self.get_roles_and_text(ctx, f"{ctx.author.mention} хочет что-то предложить")
 
         await self.create_temp_channel(
             ctx=ctx,
-            roles=[],
-            ping_roles=ping_roles,
+            roles=roles_to_add,
+            ping_roles=roles_to_mention,
             channel_name="предложение"
         )
 
-    async def load_settings(self, guild_id):
-        async with self.pool.acquire() as conn:
-            query = "SELECT temp_text_channel_category_id FROM guild_settings WHERE guild_id = $1"
-            self.category = await conn.fetchval(query, guild_id)
+    async def activate_cooldown(self, ctx):
+        self.button_cooldown_end_time = datetime.now() + self.button_cooldown
+        self.button_cooldown_end_time.isoformat()
+
+        query = "INSERT INTO cooldowns (user_id, button_cooldown_end_time) " \
+                "VALUES ($1, $2) " \
+                "ON CONFLICT (user_id) DO " \
+                "UPDATE SET button_cooldown_end_time = $2"
+        await self.pool.execute(query, ctx.author.id, self.button_cooldown_end_time)
+
 
     @commands.Cog.listener()
     async def on_button_click(self, ctx: disnake.MessageInteraction):
 
         button_id = ctx.component.custom_id
 
-        # if not self.settings_loaded:
-        #     print("Загружаю настройки")
-        #     try:
-        #         await self.load_settings(ctx.guild.id)
-        #         self.settings_loaded = True
-        #     except:
-        #         print(f"Категория не найдена")
+        if not self.settings_loaded:
+            try:
+                guild_id = ctx.guild.id
 
-        if button_id == "question_button":
-            await self.question_channel(ctx)
+                query = "SELECT text_channel_category_id " \
+                        "FROM guild_settings " \
+                        "WHERE guild_id = $1"
+                self.category = await self.pool.fetchval(query, guild_id)
 
-        elif button_id == "report_button":
-            await self.report_channel(ctx)
+                query = "SELECT roles_id_to_mention " \
+                        "FROM guild_settings " \
+                        "WHERE guild_id = $1"
+                self.roles_id_to_mention = await self.pool.fetchval(query, guild_id)
 
-        elif button_id == "offer_button":
-            await self.offer_channel(ctx)
+                query = "SELECT button_cooldown " \
+                        "FROM guild_settings " \
+                        "WHERE guild_id = $1"
+                self.button_cooldown = await self.pool.fetchval(query, guild_id)
+                self.button_cooldown = timedelta(minutes=self.button_cooldown)
 
-        elif button_id == "delete_channel_button":
+                self.settings_loaded = True
+            except:
+                await ctx.send(
+                    "Настройки для сервера не найдены. Обратитесь к администратору для настройки", ephemeral=True
+                )
+
+
+        if button_id == "delete_channel_button":
             channel = ctx.channel
             await channel.delete()
 
+        cooldown_active = False
+        response = ""
 
+        query = "SELECT button_cooldown_end_time " \
+                "FROM cooldowns " \
+                "WHERE user_id = $1"
 
+        row = await self.pool.fetchrow(query, ctx.author.id)
+        if row:
+            self.button_cooldown_end_time = row["button_cooldown_end_time"]
+
+            if self.button_cooldown_end_time and \
+                    self.button_cooldown_end_time > datetime.now().astimezone(self.button_cooldown_end_time.tzinfo):
+                remaining_time = self.button_cooldown_end_time - datetime.now().astimezone(
+                    self.button_cooldown_end_time.tzinfo)
+                remaining_time = str(remaining_time).split(".")[0]
+                response = f"Вы сможете нажать на кнопку ещё раз через {remaining_time} (часы:минуты:секунды)"
+                cooldown_active = True
+
+        if cooldown_active:
+            await ctx.send(response, ephemeral=True)
+        else:
+            if button_id == "question_button":
+                await self.question_channel(ctx)
+                await self.activate_cooldown(ctx)
+
+            elif button_id == "report_button":
+                await self.report_channel(ctx)
+                await self.activate_cooldown(ctx)
+
+            elif button_id == "offer_button":
+                await self.offer_channel(ctx)
+                await self.activate_cooldown(ctx)
 
     @commands.slash_command()
     async def support(
