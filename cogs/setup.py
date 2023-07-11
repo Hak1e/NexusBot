@@ -99,7 +99,11 @@ class TextChannel(commands.Cog):
             await ctx.channel.send(
                 "Нажмите кнопку ниже для продолжения",
                 components=[
-                    disnake.ui.Button(label="Next", style=disnake.ButtonStyle.primary, custom_id="next_button"),
+                    disnake.ui.Button(
+                        label="Next",
+                        style=disnake.ButtonStyle.primary,
+                        custom_id="next_button"
+                    )
                 ]
             )
         )
@@ -128,7 +132,9 @@ class TextChannel(commands.Cog):
 
             await ctx.send("Настройки сохранены", ephemeral=True)
 
-    # TODO: добавить команду, которая позволяет модераторам добавить в тикет людей
+
+
+# TODO: добавить команду, которая позволяет модераторам добавить в тикет людей
 
 class SetupBot(commands.Cog):
     def __init__(self, bot: Nexus):
@@ -146,7 +152,7 @@ class SetupBot(commands.Cog):
         return await self.bot.wait_for("message", check=check)
 
     async def ask_voice_channels_category(self, ctx):
-        await ctx.send("Укажите ID категории для временных голосовых каналов:")
+        await ctx.send("Укажите ID категории для временных `голосовых` каналов:")
         category_id = await self.wait_for_message(ctx)
         category = None
         while not category:
@@ -188,7 +194,7 @@ class SetupBot(commands.Cog):
 
 
     async def ask_text_channels_category(self, ctx):
-        await ctx.send("Укажите ID категории для временных текстовых каналов:")
+        await ctx.send("Укажите ID категории для временных `текстовых` каналов:")
         text_channels_category_id = await self.wait_for_message(ctx)
         text_channels_category = None
 
