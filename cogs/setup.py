@@ -4,6 +4,7 @@ from disnake import SelectOption
 import os
 from dotenv import load_dotenv
 from core.bot import Nexus
+from cogs.temp_voice_channel import OnJoinChannel
 import asyncpg
 
 load_dotenv()
@@ -171,6 +172,8 @@ class SetupBot(commands.Cog):
                 "UPDATE SET voice_channel_category_id = $2"
 
         await self.save_settings(query, ctx.guild.id, category_id)
+        await OnJoinChannel.unload_guild_settings(self.bot, ctx.guild.id)
+
 
         bot_overwrite = disnake.PermissionOverwrite(
             view_channel=True,
@@ -191,7 +194,6 @@ class SetupBot(commands.Cog):
                 "UPDATE SET create_voice_channel_id = $2"
 
         await self.save_settings(query, ctx.guild.id, voice_channel.id)
-
 
     async def ask_text_channels_category(self, ctx):
         await ctx.send("Укажите ID категории для временных `текстовых` каналов:")

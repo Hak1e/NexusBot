@@ -75,6 +75,9 @@ class OnJoinChannel(commands.Cog):
         if result:
             self.created_channels_ids = list(result)
 
+    async def unload_guild_settings(self, guild_id):
+        self.guild_settings_loaded[guild_id] = False
+
     @commands.Cog.listener()
     async def on_voice_state_update(
             self,
@@ -86,6 +89,8 @@ class OnJoinChannel(commands.Cog):
 
         if guild_id not in self.guild_settings_loaded:
             self.guild_settings_loaded[guild_id] = False
+
+        if not self.guild_settings_loaded[guild_id]:
             try:
                 await self.load_settings(guild_id)
                 await self.load_created_channels(guild_id)
@@ -95,6 +100,7 @@ class OnJoinChannel(commands.Cog):
             except Exception as e:
                 # print(f"Не удалось загрузить настройки сервера. Ошибка: {e}")
                 pass
+
 
         if before.channel == current.channel:
             return
