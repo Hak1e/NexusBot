@@ -101,7 +101,13 @@ class Tickets(commands.Cog):
                 )
             ]
         )
-        await channel.send(ping_roles)
+
+        allowed_mentions = disnake.AllowedMentions(
+            users=True,
+            roles=True
+        )
+
+        await channel.send(ping_roles, allowed_mentions=allowed_mentions)
         await ctx.response.defer()
 
     async def get_roles_and_text(self, ctx, message):
