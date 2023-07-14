@@ -96,17 +96,14 @@ class OnJoinChannel(commands.Cog):
         if current.channel is not None and current.channel.id == self.create_channel_id:
             # TODO: получить имя канала из базы данных, если оно есть
 
-            try:
-                query = "SELECT channel_name, permissions " \
-                        "FROM custom_voice " \
-                        "WHERE channel_creator_id = $1"
-                self.channel_name, self.permissions = await self.pool.fetchrow(query, member.id)
-                print(f"Channel name: {self.channel_name}\nPermissions: {self.permissions}")
-
-                
-
-            except:
-                pass
+            # try:
+            #     query = "SELECT channel_name, permissions " \
+            #             "FROM custom_voice " \
+            #             "WHERE channel_creator_id = $1"
+            #     self.channel_name, self.permissions = await self.pool.fetchrow(query, member.id)
+            #     print(f"Channel name: {self.channel_name}\nPermissions: {self.permissions}")
+            # except:
+            #     pass
 
 
 
@@ -131,8 +128,8 @@ class OnJoinChannel(commands.Cog):
         if before.channel is not None and before.channel.id in self.created_channels_ids:
             if not before.channel.members:
                 # TODO: сохранить имя кнала в базу данных
-                overwrites = before.channel.overwrites
-                self.channel_name = before.channel.name
+                # overwrites = before.channel.overwrites
+                # self.channel_name = before.channel.name
 
                 query = "UPDATE guild_settings SET " \
                         "created_voice_channel_ids = array_remove(created_voice_channel_ids, $2) " \
@@ -146,21 +143,21 @@ class OnJoinChannel(commands.Cog):
                 self.created_channels_ids.remove(before.channel.id)
 
 
-                data = []
-                for target, permissions in overwrites.items():
-                    data.append(
-                        {
-                            "target": target.id,
-                            "permissions": dict(permissions)
-                        }
-                    )
-
-
-
-                query = "UPDATE custom_voice " \
-                        "SET channel_name = $2, permissions = $3 " \
-                        "WHERE channel_creator_id = $1"
-                await self.pool.execute(query, member.id, self.channel_name, self.permissions)
+                # data = []
+                # for target, permissions in overwrites.items():
+                #     data.append(
+                #         {
+                #             "target": target.id,
+                #             "permissions": dict(permissions)
+                #         }
+                #     )
+                #
+                #
+                #
+                # query = "UPDATE custom_voice " \
+                #         "SET channel_name = $2, permissions = $3 " \
+                #         "WHERE channel_creator_id = $1"
+                # await self.pool.execute(query, member.id, self.channel_name, self.permissions)
 
 def setup(bot):
     bot.add_cog(OnJoinChannel(bot))
