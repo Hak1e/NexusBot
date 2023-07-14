@@ -267,7 +267,6 @@ class Tickets(commands.Cog):
 
         await ctx.send("Создан embed с кнопками", ephemeral=True)
 
-
     async def member_overwrite(self, ctx, member, overwrite):
         current_category_id = ctx.channel.category.id
 
