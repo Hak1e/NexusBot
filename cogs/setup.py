@@ -4,13 +4,13 @@ from disnake import SelectOption
 import os
 from dotenv import load_dotenv
 from core.bot import Nexus
+from cogs.temp_voice_channel import OnJoinChannel
 import asyncpg
 
 load_dotenv()
 
 MAX_VIEWS_IN_MENU = 25
 MAX_BUTTONS_COUNT = 5
-
 
 
 class SelectRoles(disnake.ui.Select):
@@ -37,11 +37,11 @@ class SelectRoles(disnake.ui.Select):
             await interaction.response.defer()
 
 
-# На будущее
-class TextChannel(commands.Cog):
+class SetupBot(commands.Cog):
     def __init__(self, bot: Nexus):
         self.bot = bot
         self.pool: asyncpg.Pool = bot.get_pool()
+
         self.view_list = []
         self.sent_messages = []
 
@@ -130,16 +130,9 @@ class TextChannel(commands.Cog):
             for message in self.sent_messages:
                 await message.delete()
 
-            await ctx.send("Настройки сохранены", ephemeral=True)
+            await ctx.send("Настройка завершена\nКонец настройки", ephemeral=True)
 
 
-
-# TODO: добавить команду, которая позволяет модераторам добавить в тикет людей
-
-class SetupBot(commands.Cog):
-    def __init__(self, bot: Nexus):
-        self.bot = bot
-        self.pool: asyncpg.Pool = bot.get_pool()
 
     async def save_settings(self, query, *args):
         async with self.pool.acquire() as conn:
@@ -152,7 +145,7 @@ class SetupBot(commands.Cog):
         return await self.bot.wait_for("message", check=check)
 
     async def ask_voice_channels_category(self, ctx):
-        await ctx.send("Укажите ID категории для временных `голосовых` каналов:")
+        await ctx.channel.send("Укажите ID категории для временных `голосовых` каналов:")
         category_id = await self.wait_for_message(ctx)
         category = None
         while not category:
@@ -162,7 +155,7 @@ class SetupBot(commands.Cog):
                 if not isinstance(category, disnake.CategoryChannel):
                     raise ValueError
             except (ValueError, AttributeError):
-                await ctx.send("Категория не найдена, попробуйте ещё раз:")
+                await ctx.channel.send("Категория не найдена, попробуйте ещё раз:")
                 category_id = await self.wait_for_message(ctx)
 
         query = "INSERT INTO guild_settings (guild_id, voice_channel_category_id)" \
@@ -171,6 +164,11 @@ class SetupBot(commands.Cog):
                 "UPDATE SET voice_channel_category_id = $2"
 
         await self.save_settings(query, ctx.guild.id, category_id)
+        on_join_channel = OnJoinChannel(self.bot)
+        await on_join_channel.unload_guild_settings(ctx.guild.id)
+
+        await ctx.channel.send("В выбранной категории создан голосовой канал\n"
+                               "Вы можете изменить его название вручную в любое время")
 
         bot_overwrite = disnake.PermissionOverwrite(
             view_channel=True,
@@ -192,9 +190,8 @@ class SetupBot(commands.Cog):
 
         await self.save_settings(query, ctx.guild.id, voice_channel.id)
 
-
-    async def ask_text_channels_category(self, ctx):
-        await ctx.send("Укажите ID категории для временных `текстовых` каналов:")
+    async def ask_tickets_category(self, ctx):
+        await ctx.channel.send("Укажите ID категории для тикетов:")
         text_channels_category_id = await self.wait_for_message(ctx)
         text_channels_category = None
 
@@ -203,18 +200,18 @@ class SetupBot(commands.Cog):
                 text_channels_category_id = int(text_channels_category_id.content)
                 text_channels_category = self.bot.get_channel(text_channels_category_id)
             except (ValueError, AttributeError):
-                await ctx.send("Канал не найден, попробуйте ещё раз:")
+                await ctx.channel.send("Категория не найдена, попробуйте ещё раз:")
                 text_channels_category_id = await self.wait_for_message(ctx)
 
-        query = "INSERT INTO guild_settings (guild_id, text_channel_category_id)" \
+        query = "INSERT INTO guild_settings (guild_id, tickets_category_id)" \
                 "VALUES ($1, $2)" \
                 "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET text_channel_category_id = $2"
+                "UPDATE SET tickets_category_id = $2"
 
         await self.save_settings(query, ctx.guild.id, text_channels_category_id)
 
     async def ask_art_channel_id(self, ctx):
-        await ctx.send("Укажите ID канала для артов:")
+        await ctx.channel.send("Укажите ID канала для артов:")
         art_channel_id = await self.wait_for_message(ctx)
         art_channel = None
 
@@ -223,7 +220,7 @@ class SetupBot(commands.Cog):
                 art_channel_id = int(art_channel_id.content)
                 art_channel = self.bot.get_channel(art_channel_id)
             except (ValueError, AttributeError):
-                await ctx.send("Канал не найден, попробуйте ещё раз:")
+                await ctx.channel.send("Канал не найден, попробуйте ещё раз:")
                 art_channel_id = await self.wait_for_message(ctx)
 
         query = "INSERT INTO guild_settings (guild_id, art_channel_id)" \
@@ -234,7 +231,7 @@ class SetupBot(commands.Cog):
         await self.save_settings(query, ctx.guild.id, art_channel_id)
 
     async def ask_meme_channel_id(self, ctx):
-        await ctx.send("Укажите ID канала для мемов:")
+        await ctx.channel.send("Укажите ID канала для мемов:")
         meme_channel_id = await self.wait_for_message(ctx)
         meme_channel = None
 
@@ -243,7 +240,7 @@ class SetupBot(commands.Cog):
                 meme_channel_id = int(meme_channel_id.content)
                 meme_channel = self.bot.get_channel(meme_channel_id)
             except (ValueError, AttributeError):
-                await ctx.send("Канал не найден, попробуйте ещё раз:")
+                await ctx.channel.send("Канал не найден, попробуйте ещё раз:")
                 meme_channel_id = await self.wait_for_message(ctx)
 
         query = "INSERT INTO guild_settings (guild_id, meme_channel_id)" \
@@ -254,7 +251,7 @@ class SetupBot(commands.Cog):
         await self.save_settings(query, ctx.guild.id, meme_channel_id)
 
     async def ask_roles_mention_in_tickets(self, ctx):
-        await ctx.send("Укажите ID ролей, которые будут иметь доступ к тикетам, через пробел:")
+        await ctx.channel.send("Укажите ID ролей, которые будут иметь доступ к тикетам, через пробел:")
         input_roles = await self.wait_for_message(ctx)
         roles_id = None
 
@@ -278,14 +275,14 @@ class SetupBot(commands.Cog):
         await self.save_settings(query, ctx.guild.id, roles_id)
 
     async def ask_button_cooldown(self, ctx):
-        await ctx.send("Укажите время (в минутах) между нажатем кнопок для одного пользователя (Изначально 5 минут):")
+        await ctx.channel.send("Укажите время (в минутах) между нажатем кнопок для одного пользователя (Изначально 5 минут):")
         input_cooldown = await self.wait_for_message(ctx)
         cooldown = None
         while type(cooldown) != int:
             try:
                 cooldown = int(input_cooldown.content)
             except (ValueError, AttributeError):
-                await ctx.send("Введите только число:")
+                await ctx.channel.send("Введите только число:")
                 input_cooldown = await self.wait_for_message(ctx)
                 cooldown = None
 
@@ -300,79 +297,87 @@ class SetupBot(commands.Cog):
     @commands.slash_command()
     async def setup_creative_work(self, ctx: disnake.CommandInteraction):
         """Указать каналы для артов и мемов"""
+        await ctx.send("Начало настройки каналов для артов и мемов")
         await self.ask_art_channel_id(ctx)
         await self.ask_meme_channel_id(ctx)
 
-        await ctx.send("Настройки сохранены", ephemeral=True)
+        await ctx.channel.send("Настройка завершена")
 
     @commands.slash_command()
     async def setup_voice(self, ctx: disnake.CommandInteraction):
         """Указать ID категории для временных каналов"""
+        await ctx.send("Начало настройки голосовых каналов")
         await self.ask_voice_channels_category(ctx)
 
-        await ctx.send("Настройки сохранены", ephemeral=True)
+        await ctx.channel.send("Настройка завершена")
 
     @commands.slash_command()
     async def setup_tickets(self, ctx: disnake.CommandInteraction):
         """Указать категорию для тикетов и роли, которые будут иметь доступ к тикетам"""
-        await self.ask_text_channels_category(ctx)
+        await ctx.send("Начало настройки тикетов")
+        await self.ask_tickets_category(ctx)
         await self.ask_roles_mention_in_tickets(ctx)
         await self.ask_button_cooldown(ctx)
 
-        await ctx.send("Настройки сохранены", ephemeral=True)
+        await ctx.channel.send("Настройка завершена")
 
     @commands.slash_command()
     async def setup_all(self, ctx: disnake.CommandInteraction):
         """Настроить всё сразу"""
+        await ctx.send("Начало настройки всего по порядку")
         await self.ask_art_channel_id(ctx)
         await self.ask_meme_channel_id(ctx)
 
-        await self.ask_text_channels_category(ctx)
+        await self.ask_tickets_category(ctx)
         await self.ask_roles_mention_in_tickets(ctx)
         await self.ask_button_cooldown(ctx)
 
         await self.ask_voice_channels_category(ctx)
 
-        await ctx.send("Настройка успешно завершена", ephemeral=True)
+        await ctx.channel.send("Настройка успешно завершена\nКонец настройки")
 
     @commands.slash_command()
     async def edit_art_channel(self, ctx: disnake.CommandInteraction):
         """Изменить ID канала для артов"""
+        await ctx.send("Начало изменения какнала для артов")
         await self.ask_art_channel_id(ctx)
-        await ctx.send("Настройки изменены", ephemeral=True)
+        await ctx.channel.send("Настройки изменены")
 
     @commands.slash_command()
     async def edit_meme_channel(self, ctx: disnake.CommandInteraction):
         """Изменить ID канала для мемов"""
+        await ctx.send("Начало изменения канала для мемов")
         await self.ask_meme_channel_id(ctx)
-        await ctx.send("Настройки изменены", ephemeral=True)
+        await ctx.channel.send("Настройки изменены")
 
     @commands.slash_command()
     async def edit_text_channels_category(self, ctx: disnake.CommandInteraction):
         """Изменить ID категории для создаваемых тикетов"""
-        await self.ask_text_channels_category(ctx)
-        await ctx.send("Настройки изменены", ephemeral=True)
+        await ctx.send("Начало изменения категории тикетов")
+        await self.ask_tickets_category(ctx)
+        await ctx.channel.send("Настройки изменены")
 
     @commands.slash_command()
     async def edit_roles_mention(self, ctx: disnake.CommandInteraction):
         """Изменить ID ролей для упоминания при создании тикетов"""
+        await ctx.send("Начало изменения упоминания ролей в тикетах")
         await self.ask_roles_mention_in_tickets(ctx)
-        await ctx.send("Настройки изменены", ephemeral=True)
+        await ctx.channel.send("Настройки изменены")
 
     @commands.slash_command()
     async def edit_button_cooldown(self, ctx: disnake.CommandInteraction):
         """Изменить кулдаун нажатия на кнопку для каждого пользователя"""
+        await ctx.send("Начало изменения кулдауна нажатия кнопок")
         await self.ask_button_cooldown(ctx)
-        await ctx.send("Настройки изменены", ephemeral=True)
+        await ctx.channel.send("Настройки изменены")
 
     @commands.slash_command()
     async def edit_voice_channels_category(self, ctx: disnake.CommandInteraction):
         """Изменить ID категории для голосовых каналов"""
+        await ctx.send("Начало изменения категории голосовых каналов")
         await self.ask_voice_channels_category(ctx)
-        await ctx.send("Настройки изменены", ephemeral=True)
-
+        await ctx.channel.send("Настройки изменены")
 
 
 def setup(bot):
     bot.add_cog(SetupBot(bot))
-    # bot.add_cog(TextChannel(bot))

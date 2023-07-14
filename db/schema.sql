@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS guild_settings (
     art_channel_id BIGINT,
     meme_channel_id BIGINT,
 
-    text_channel_category_id BIGINT,
+    tickets_category_id BIGINT,
     roles_id_to_mention BIGINT[],
 
     voice_channel_category_id BIGINT,
@@ -18,8 +18,14 @@ CREATE TABLE IF NOT EXISTS guild_settings (
 
 );
 
-
 CREATE TABLE IF NOT EXISTS cooldowns (
     user_id BIGINT PRIMARY KEY,
     button_cooldown_end_time TIMESTAMP WITH TIME ZONE
 );
+
+CREATE TABLE IF NOT EXISTS custom_voice (
+    channel_creator_id BIGINT PRIMARY KEY,
+    channel_name TEXT,
+    permissions JSONB
+);
+

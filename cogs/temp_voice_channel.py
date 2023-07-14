@@ -1,3 +1,4 @@
+import json
 import typing
 
 import disnake
@@ -17,10 +18,15 @@ class OnJoinChannel(commands.Cog):
         self.create_channel_id = None
         self.guild_settings_loaded = {}
         self.created_channels_ids = []
+        self.channel_name = None
+        self.permissions = None
 
     async def create_voice_channel(
             self,
             member: disnake.Member,
+            channel_name: str = None,
+            overwrites=None
+
     ):
         category = member.guild.get_channel(self.category_id)
         overwrite = disnake.PermissionOverwrite(
@@ -29,33 +35,18 @@ class OnJoinChannel(commands.Cog):
             manage_channels=True
         )
 
-        text_channel = await member.guild.create_voice_channel(
-            name=f"{member.name}'s channel",
+        channel_name = channel_name or f"{member.name}'s channel"
+        voice_channel = await member.guild.create_voice_channel(
+            name=channel_name,
             category=category,
             overwrites=category.overwrites
         )
-        self.created_channels_ids.append(text_channel.id)
-        await text_channel.set_permissions(member, overwrite=overwrite)
+        self.created_channels_ids.append(voice_channel.id)
+        await voice_channel.set_permissions(member, overwrite=overwrites or overwrite)
 
-        await member.move_to(text_channel)
+        await member.move_to(voice_channel)
 
-        return text_channel
-
-    async def voice_state_log(
-            self,
-            member: disnake.Member,
-            before: disnake.VoiceState,
-            current: disnake.VoiceState,
-    ):
-        if before.channel is None and current.channel is not None:
-            print(f"{member.name} зашёл в {current.channel.name}")
-
-        elif before.channel is not None and current.channel is not None:
-            previous_channel_name = before.channel.name
-            print(f"{member.name} перешёл из {previous_channel_name} в {current.channel.name}")
-
-        elif before.channel is not None and current.channel is None:
-            print(f"{member.name} покинул канал {before.channel.name}")
+        return voice_channel
 
     async def load_settings(self, guild_id):
         async with self.pool.acquire() as conn:
@@ -75,6 +66,9 @@ class OnJoinChannel(commands.Cog):
         if result:
             self.created_channels_ids = list(result)
 
+    async def unload_guild_settings(self, guild_id):
+        self.guild_settings_loaded[guild_id] = False
+
     @commands.Cog.listener()
     async def on_voice_state_update(
             self,
@@ -86,27 +80,38 @@ class OnJoinChannel(commands.Cog):
 
         if guild_id not in self.guild_settings_loaded:
             self.guild_settings_loaded[guild_id] = False
+
+        if not self.guild_settings_loaded[guild_id]:
             try:
                 await self.load_settings(guild_id)
                 await self.load_created_channels(guild_id)
 
                 self.guild_settings_loaded[guild_id] = True
-                # print(f"Настройки для сервера {member.guild.name} загружены")
-            except Exception as e:
-                # print(f"Не удалось загрузить настройки сервера. Ошибка: {e}")
+            except:
                 pass
 
         if before.channel == current.channel:
             return
 
-        # await self.voice_state_log(
-        #     member=member,
-        #     before=before,
-        #     current=current
-        # )
-
         if current.channel is not None and current.channel.id == self.create_channel_id:
-            self.custom_channel = await self.create_voice_channel(member=member)
+            # TODO: получить имя канала из базы данных, если оно есть
+            #
+            # try:
+            #     query = "SELECT channel_name, permissions " \
+            #             "FROM custom_voice " \
+            #             "WHERE channel_creator_id = $1"
+            #     self.channel_name, self.permissions = await self.pool.fetchrow(query, member.id)
+            #     print(f"Channel name: {self.channel_name}\nPermissions: {self.permissions}")
+            # except:
+            #     pass
+
+
+
+            self.custom_channel = await self.create_voice_channel(
+                member=member,
+                # channel_name=self.channel_name,
+                # overwrites=self.permissions
+            )
             query = "UPDATE guild_settings " \
                     "SET created_voice_channel_ids = array_append(created_voice_channel_ids, $2) " \
                     "WHERE guild_id = $1"
@@ -119,8 +124,9 @@ class OnJoinChannel(commands.Cog):
 
         if before.channel is not None and before.channel.id in self.created_channels_ids:
             if not before.channel.members:
-                await before.channel.delete()
-                self.created_channels_ids.remove(before.channel.id)
+                # TODO: сохранить имя кнала в базу данных
+                # overwrites = before.channel.overwrites
+                # self.channel_name = before.channel.name
 
                 query = "UPDATE guild_settings SET " \
                         "created_voice_channel_ids = array_remove(created_voice_channel_ids, $2) " \
@@ -130,7 +136,23 @@ class OnJoinChannel(commands.Cog):
                     member.guild.id,
                     before.channel.id
                 )
+                await before.channel.delete()
+                self.created_channels_ids.remove(before.channel.id)
 
+
+                # data = []
+                # for target, permissions in overwrites.items():
+                #     data.append(
+                #         {
+                #             "target": target.id,
+                #             "permissions": dict(permissions)
+                #         }
+                #     )
+                #
+                # query = "UPDATE custom_voice " \
+                #         "SET channel_name = $2, permissions = $3 " \
+                #         "WHERE channel_creator_id = $1"
+                # await self.pool.execute(query, member.id, self.channel_name, self.permissions)
 
 def setup(bot):
     bot.add_cog(OnJoinChannel(bot))
