@@ -11,7 +11,7 @@ emoji_like = os.getenv("EMOJI_LIKE")
 emoji_dislike = os.getenv("EMOJI_DISLIKE")
 
 # TODO: при отправке сообщения бот должен скинуть прикреплённую картинку в архив, скопировать её ссылку и уже потом отправить
-# ибо картинка удаляется со временем, если она отправлена от имени бота
+
 
 async def send_embed(
         ctx: disnake.CommandInteraction,
