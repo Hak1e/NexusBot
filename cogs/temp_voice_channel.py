@@ -90,16 +90,15 @@ class OnJoinChannel(commands.Cog):
             return
 
         if current.channel is not None and current.channel.id == self.create_channel_id:
-            # TODO: получить имя канала из базы данных, если оно есть
+            # TODO: получить разрешения ролей и участников из БД
 
-            # try:
-            #     query = "SELECT channel_name, permissions " \
-            #             "FROM custom_voice " \
-            #             "WHERE channel_creator_id = $1"
-            #     self.channel_name, self.permissions = await self.pool.fetchrow(query, member.id)
-            #     print(f"Channel name: {self.channel_name}\nPermissions: {self.permissions}")
-            # except:
-            #     pass
+            try:
+                query = "SELECT channel_name " \
+                        "FROM custom_voice " \
+                        "WHERE channel_creator_id = $1"
+                self.channel_name = await self.pool.fetchval(query, member.id)
+            except:
+                pass
 
 
 
@@ -123,9 +122,16 @@ class OnJoinChannel(commands.Cog):
 
         if before.channel is not None and before.channel.id in self.created_channels_ids:
             if not before.channel.members:
-                # TODO: сохранить имя кнала в базу данных
+                # TODO: сохранить разрешения канала в БД
                 # overwrites = before.channel.overwrites
-                # self.channel_name = before.channel.name
+                self.channel_name = before.channel.name
+
+                query = "INSERT INTO custom_voice (channel_creator_id, channel_name)" \
+                        "VALUES ($1, $2)" \
+                        "ON CONFLICT (channel_creator_id) DO " \
+                        "UPDATE SET channel_name = $2"
+                await self.pool.execute(query, member.id, self.channel_name)
+
 
                 query = "UPDATE guild_settings SET " \
                         "created_voice_channel_ids = array_remove(created_voice_channel_ids, $2) " \
