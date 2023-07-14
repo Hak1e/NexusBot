@@ -1,10 +1,6 @@
-import json
 import typing
-
 import disnake
 from disnake.ext import commands
-from disnake import Permissions
-import config
 import asyncpg
 from core.bot import Nexus
 
