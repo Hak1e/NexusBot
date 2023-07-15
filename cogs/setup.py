@@ -351,7 +351,7 @@ class SetupBot(commands.Cog):
         await ctx.channel.send("Настройки изменены")
 
     @commands.slash_command()
-    async def edit_text_channels_category(self, ctx: disnake.CommandInteraction):
+    async def edit_tickets_category(self, ctx: disnake.CommandInteraction):
         """Изменить ID категории для создаваемых тикетов"""
         await ctx.send("Начало изменения категории тикетов")
         await self.ask_tickets_category(ctx)
