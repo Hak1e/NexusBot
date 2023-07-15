@@ -109,7 +109,7 @@ class Tickets(commands.Cog):
         )
 
         await channel.send(ping_roles, allowed_mentions=allowed_mentions)
-        # await ctx.response.defer() - на локальной БД здесь всё было норм
+        await ctx.response.defer()
 
     async def get_roles_and_text(self, ctx, message):
         roles_to_add = [ctx.guild.get_role(role_id) for role_id in self.guild_mention_roles_ids[ctx.guild.id]]
@@ -221,7 +221,7 @@ class Tickets(commands.Cog):
         if cooldown_active:
             await ctx.send(response, ephemeral=True)
         else:
-            await ctx.send(f"Ваш тикет скоро будет создан. Пожалуйста, ожидайте", ephemeral=True)
+            # await ctx.send(f"Ваш тикет скоро будет создан. Пожалуйста, ожидайте", ephemeral=True)
             await self.activate_cooldown(ctx)
             if button_id == "question_button":
                 await self.question_channel(ctx)
