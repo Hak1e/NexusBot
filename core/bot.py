@@ -1,10 +1,7 @@
 import disnake
 from disnake.ext import commands
-from asyncpg import Pool
-import os
-from dotenv import load_dotenv
 from core.db import Database
-import typing as t
+
 
 class Nexus(commands.InteractionBot):
     def __init__(self) -> None:
@@ -22,8 +19,6 @@ class Nexus(commands.InteractionBot):
         print(f"Подключено")
 
     async def on_ready(self):
-        await self.connect_to_db()
-        self.bot.load_extensions(self, "./cogs/")
         print(f"Бот {self.user} готов к работе!")
 
     def get_db(self):
