@@ -100,8 +100,6 @@ class OnJoinChannel(commands.Cog):
             except:
                 pass
 
-
-
             self.custom_channel = await self.create_voice_channel(
                 member=member,
                 channel_name=self.channel_name,
@@ -115,10 +113,6 @@ class OnJoinChannel(commands.Cog):
                 member.guild.id,
                 self.custom_channel.id
             )
-
-
-
-
 
         if before.channel is not None and before.channel.id in self.created_channels_ids:
             if not before.channel.members:
@@ -141,8 +135,9 @@ class OnJoinChannel(commands.Cog):
                     member.guild.id,
                     before.channel.id
                 )
-                await before.channel.delete()
                 self.created_channels_ids.remove(before.channel.id)
+                await before.channel.delete()
+
 
 
                 # data = []

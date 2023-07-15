@@ -2,7 +2,7 @@ import asyncpg
 import disnake
 from disnake.ext import commands
 from core.bot import Nexus
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 
 class ButtonView(disnake.ui.View):
@@ -55,7 +55,7 @@ class Tickets(commands.Cog):
         self.pool: asyncpg.Pool = self.bot.get_pool()
         self.category_id = None
         self.roles_id_to_mention = []
-        self.settings_loaded = False
+        self.guild_settings_loaded = {}
         self.button_cooldown = timedelta(minutes=5)
         self.button_cooldown_end_time = timedelta(seconds=0)
 
@@ -154,7 +154,7 @@ class Tickets(commands.Cog):
     async def activate_cooldown(self, ctx):
         self.button_cooldown_end_time = datetime.now() + self.button_cooldown
         self.button_cooldown_end_time.isoformat()
-
+        # TODO: изменена БД. Добавить в кулдаун айди гильдии
         query = "INSERT INTO cooldowns (user_id, button_cooldown_end_time) " \
                 "VALUES ($1, $2) " \
                 "ON CONFLICT (user_id) DO " \
@@ -165,10 +165,13 @@ class Tickets(commands.Cog):
     async def on_button_click(self, ctx: disnake.MessageInteraction):
 
         button_id = ctx.component.custom_id
+        guild_id = ctx.guild.id
 
-        if not self.settings_loaded:
+        if guild_id not in self.guild_settings_loaded:
+            self.guild_settings_loaded[guild_id] = False
+
+        if not self.guild_settings_loaded[guild_id]:
             try:
-                guild_id = ctx.guild.id
 
                 query = "SELECT tickets_category_id " \
                         "FROM guild_settings " \
