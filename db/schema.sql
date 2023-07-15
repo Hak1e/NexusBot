@@ -1,5 +1,6 @@
 DROP TABLE IF EXISTS guild_settings;
 DROP TABLE IF EXISTS cooldowns;
+DROP TABLE IF EXISTS custom_voice;
 
 
 CREATE TABLE IF NOT EXISTS guild_settings (
@@ -19,13 +20,14 @@ CREATE TABLE IF NOT EXISTS guild_settings (
 );
 
 CREATE TABLE IF NOT EXISTS cooldowns (
-    user_id BIGINT PRIMARY KEY,
+    guild_id BIGINT PRIMARY KEY,
+    user_id BIGINT,
     button_cooldown_end_time TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE IF NOT EXISTS custom_voice (
-    channel_creator_id BIGINT PRIMARY KEY,
-    channel_name TEXT,
-    permissions JSONB
+    guild_id BIGINT PRIMARY KEY,
+    channel_creator_id BIGINT,
+    channel_name TEXT
 );
 
