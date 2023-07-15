@@ -3,7 +3,7 @@ import disnake
 from disnake.ext import commands
 from core.bot import Nexus
 from datetime import datetime, timedelta
-
+import asyncio
 
 class ButtonView(disnake.ui.View):
     def __init__(self):
@@ -69,9 +69,11 @@ class Tickets(commands.Cog):
         guild = ctx.guild
         user = ctx.author
         category = ctx.guild.get_channel(self.category_id)
-        user_overwrite = disnake.PermissionOverwrite()
-        user_overwrite.send_messages = True
-        user_overwrite.view_channel = True
+        user_overwrite = disnake.PermissionOverwrite(
+            send_messages=True,
+            view_channel=True
+        )
+
 
         overwrites = {
             guild.default_role: disnake.PermissionOverwrite(read_messages=False),
@@ -87,7 +89,6 @@ class Tickets(commands.Cog):
             category=category,
             overwrites=overwrites
         )
-
         embed = disnake.Embed(description=f"Чтобы закрыть тикет, нажмите кнопку ниже")
 
         await channel.send(
@@ -101,23 +102,20 @@ class Tickets(commands.Cog):
                 )
             ]
         )
-
         allowed_mentions = disnake.AllowedMentions(
             users=True,
             roles=True
         )
 
         await channel.send(ping_roles, allowed_mentions=allowed_mentions)
-        await ctx.response.defer()
+        # await ctx.response.defer() - на локальной БД здесь всё было норм
 
     async def get_roles_and_text(self, ctx, message):
         roles_to_add = [ctx.guild.get_role(role_id) for role_id in self.roles_id_to_mention]
-
         roles_to_mention = ""
         for role in roles_to_add:
             roles_to_mention += f"{role.mention}, "
         roles_to_mention += message
-
         return roles_to_add, roles_to_mention
 
     async def question_channel(self, ctx):
@@ -163,6 +161,7 @@ class Tickets(commands.Cog):
 
     @commands.Cog.listener()
     async def on_button_click(self, ctx: disnake.MessageInteraction):
+        await ctx.send(f"Ваш тикет скоро будет создан. Пожалуйста, ожидайте", ephemeral=True)
 
         button_id = ctx.component.custom_id
         guild_id = ctx.guild.id
@@ -189,7 +188,7 @@ class Tickets(commands.Cog):
                 self.button_cooldown = await self.pool.fetchval(query, guild_id)
                 self.button_cooldown = timedelta(minutes=self.button_cooldown)
 
-                self.settings_loaded = True
+                self.guild_settings_loaded[guild_id] = True
             except:
                 await ctx.send(
                     "Настройки для сервера не найдены. Обратитесь к администратору для настройки", ephemeral=True
@@ -198,6 +197,7 @@ class Tickets(commands.Cog):
         if button_id == "delete_channel_button":
             channel = ctx.channel
             await channel.delete()
+            return
 
         cooldown_active = False
         response = ""
@@ -209,7 +209,6 @@ class Tickets(commands.Cog):
         row = await self.pool.fetchrow(query, ctx.author.id)
         if row:
             self.button_cooldown_end_time = row["button_cooldown_end_time"]
-
             if self.button_cooldown_end_time and \
                     self.button_cooldown_end_time > datetime.now().astimezone(self.button_cooldown_end_time.tzinfo):
                 remaining_time = self.button_cooldown_end_time - datetime.now().astimezone(
@@ -221,17 +220,16 @@ class Tickets(commands.Cog):
         if cooldown_active:
             await ctx.send(response, ephemeral=True)
         else:
+            await self.activate_cooldown(ctx)
             if button_id == "question_button":
                 await self.question_channel(ctx)
-                await self.activate_cooldown(ctx)
 
             elif button_id == "report_button":
                 await self.report_channel(ctx)
-                await self.activate_cooldown(ctx)
 
             elif button_id == "offer_button":
                 await self.offer_channel(ctx)
-                await self.activate_cooldown(ctx)
+
 
     @commands.slash_command()
     async def create_tickets_creator(
