@@ -168,18 +168,11 @@ class SetupBot(commands.Cog):
         await ctx.channel.send("В выбранной категории создан голосовой канал\n"
                                "Вы можете изменить его название вручную в любое время")
 
-        bot_overwrite = disnake.PermissionOverwrite(
-            view_channel=True,
-            manage_permissions=True,
-            manage_channels=True
-        )
         voice_channel = await ctx.guild.create_voice_channel(
             name="【➕】Создать",
             category=category,
             overwrites=category.overwrites
         )
-        bot = ctx.guild.get_member(self.bot.user.id)
-        await voice_channel.set_permissions(bot, overwrite=bot_overwrite)
 
         query = "INSERT INTO guild_settings (guild_id, create_voice_channel_id)" \
                 "VALUES ($1, $2)" \
@@ -290,7 +283,6 @@ class SetupBot(commands.Cog):
                 "UPDATE SET button_cooldown = $2"
 
         await self.save_settings(query, ctx.guild.id, cooldown)
-
 
     @commands.slash_command()
     async def setup_creative_work(self, ctx: disnake.CommandInteraction):
