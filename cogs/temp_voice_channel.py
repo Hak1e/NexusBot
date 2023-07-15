@@ -87,8 +87,8 @@ class OnJoinChannel(commands.Cog):
             try:
                 query = "SELECT channel_name " \
                         "FROM custom_voice " \
-                        "WHERE guild_id = $1 and channel_creator_id = $2"
-                self.guild_channel_name = await self.pool.fetchval(query, member.guild.id, member.id)
+                        "WHERE guild_id_user_id = $1"
+                self.guild_channel_name = await self.pool.fetchval(query, f"{member.guild.id}_{member.id}")
             except:
                 pass
 
@@ -111,11 +111,11 @@ class OnJoinChannel(commands.Cog):
                 # overwrites = before.channel.overwrites
                 self.guild_channel_name = before.channel.name
 
-                query = "INSERT INTO custom_voice (guild_id, channel_creator_id, channel_name)" \
-                        "VALUES ($1, $2, $3)" \
-                        "ON CONFLICT (guild_id) " \
-                        "DO UPDATE SET channel_name = $3"
-                await self.pool.execute(query, member.guild.id, member.id, self.guild_channel_name)
+                query = "INSERT INTO custom_voice (guild_id_user_id, channel_name)" \
+                        "VALUES ($1, $2)" \
+                        "ON CONFLICT (guild_id_user_id) " \
+                        "DO UPDATE SET channel_name = $2"
+                await self.pool.execute(query, f"{member.guild.id}_{member.id}", self.guild_channel_name)
 
                 query = "UPDATE guild_settings SET " \
                         "created_voice_channel_ids = array_remove(created_voice_channel_ids, $2) " \
