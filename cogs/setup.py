@@ -132,8 +132,6 @@ class SetupBot(commands.Cog):
 
             await ctx.send("Настройка завершена\nКонец настройки", ephemeral=True)
 
-
-
     async def save_settings(self, query, *args):
         async with self.pool.acquire() as conn:
             await conn.execute(query, *args)
@@ -275,7 +273,7 @@ class SetupBot(commands.Cog):
         await self.save_settings(query, ctx.guild.id, roles_id)
 
     async def ask_button_cooldown(self, ctx):
-        await ctx.channel.send("Укажите время (в минутах) между нажатем кнопок для одного пользователя (Изначально 5 минут):")
+        await ctx.channel.send("Укажите время (в минутах) между нажатем кнопок для одного пользователя:")
         input_cooldown = await self.wait_for_message(ctx)
         cooldown = None
         while type(cooldown) != int:
