@@ -3,7 +3,6 @@ import disnake
 from disnake.ext import commands
 import asyncpg
 from core.bot import Nexus
-import time
 
 
 class OnJoinChannel(commands.Cog):
@@ -23,21 +22,21 @@ class OnJoinChannel(commands.Cog):
 
     ):
         category = member.guild.get_channel(self.category_id)
-
         channel_name = channel_name or f"{member.name}'s channel"
+
         voice_channel = await member.guild.create_voice_channel(
             name=channel_name,
             category=category,
             overwrites=category.overwrites
         )
-        self.created_channels_ids.append(voice_channel.id)
-        overwrite = disnake.PermissionOverwrite(
-            view_channel=True,
-            manage_permissions=True,
-            manage_channels=True
-        )
-        await voice_channel.set_permissions(member, overwrite=overwrite)
+        overwrite = disnake.PermissionOverwrite()
+        overwrite.view_channel = True
+        overwrite.manage_permissions = True
+        overwrite.manage_channels = True
 
+        await voice_channel.set_permissions(member, overwrite=overwrite)
+        await voice_channel.set_permissions(member, channel_name=channel_name)
+        self.created_channels_ids.append(voice_channel.id)
         await member.move_to(voice_channel)
 
         return voice_channel
@@ -79,7 +78,6 @@ class OnJoinChannel(commands.Cog):
                 self.custom_channel_name = await self.pool.fetchval(query, f"{member.guild.id}_{member.id}")
             except:
                 pass
-
             self.custom_channel = await self.create_voice_channel(
                 member=member,
                 channel_name=self.custom_channel_name,

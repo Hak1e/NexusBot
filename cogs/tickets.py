@@ -70,10 +70,9 @@ class Tickets(commands.Cog):
         guild = ctx.guild
         user = ctx.author
         category = ctx.guild.get_channel(self.guild_category_ids)
-        user_overwrite = disnake.PermissionOverwrite(
-            send_messages=True,
-            view_channel=True
-        )
+        user_overwrite = disnake.PermissionOverwrite()
+        user_overwrite.send_messages = True
+        user_overwrite.view_channel = True
 
         overwrites = {
             guild.default_role: disnake.PermissionOverwrite(read_messages=False),
