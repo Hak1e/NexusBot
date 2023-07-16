@@ -143,12 +143,12 @@ class SetupBot(commands.Cog):
         return await self.bot.wait_for("message", check=check)
 
     async def ask_voice_channels_category(self, ctx):
-        await ctx.channel.send("**Добавьте в категорию следующие разрешения для бота:**\n"
+        await ctx.channel.send("Укажите ID категории для временных голосовых каналов:")
+        await ctx.channel.send("**Перед этим добавьте в категорию следующие разрешения для бота:**\n"
                                "`Просматривать каналы`\n"
                                "`Управлять каналами`\n"
                                "`Управлять правами`\n"
                                "`Перемещать участников`")
-        await ctx.channel.send("Укажите ID категории для временных голосовых каналов:")
         category_id = await self.wait_for_message(ctx)
         category = None
         while not category:
@@ -167,8 +167,6 @@ class SetupBot(commands.Cog):
                 "UPDATE SET voice_channel_category_id = $2"
 
         await self.save_settings(query, ctx.guild.id, category_id)
-        on_join_channel = OnJoinChannel(self.bot)
-        await on_join_channel.unload_guild_settings(ctx.guild.id)
 
         voice_channel = await ctx.guild.create_voice_channel(
             name="【➕】Создать",
@@ -204,46 +202,6 @@ class SetupBot(commands.Cog):
                 "UPDATE SET tickets_category_id = $2"
 
         await self.save_settings(query, ctx.guild.id, text_channels_category_id)
-
-    async def ask_art_channel_id(self, ctx):
-        await ctx.channel.send("Укажите ID канала для артов:")
-        art_channel_id = await self.wait_for_message(ctx)
-        art_channel = None
-
-        while not art_channel:
-            try:
-                art_channel_id = int(art_channel_id.content)
-                art_channel = self.bot.get_channel(art_channel_id)
-            except (ValueError, AttributeError):
-                await ctx.channel.send("Канал не найден, попробуйте ещё раз:")
-                art_channel_id = await self.wait_for_message(ctx)
-
-        query = "INSERT INTO guild_settings (guild_id, art_channel_id)" \
-                "VALUES ($1, $2)" \
-                "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET art_channel_id = $2"
-
-        await self.save_settings(query, ctx.guild.id, art_channel_id)
-
-    async def ask_meme_channel_id(self, ctx):
-        await ctx.channel.send("Укажите ID канала для мемов:")
-        meme_channel_id = await self.wait_for_message(ctx)
-        meme_channel = None
-
-        while not meme_channel:
-            try:
-                meme_channel_id = int(meme_channel_id.content)
-                meme_channel = self.bot.get_channel(meme_channel_id)
-            except (ValueError, AttributeError):
-                await ctx.channel.send("Канал не найден, попробуйте ещё раз:")
-                meme_channel_id = await self.wait_for_message(ctx)
-
-        query = "INSERT INTO guild_settings (guild_id, meme_channel_id)" \
-                "VALUES ($1, $2)" \
-                "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET meme_channel_id = $2"
-
-        await self.save_settings(query, ctx.guild.id, meme_channel_id)
 
     async def ask_roles_mention_in_tickets(self, ctx):
         await ctx.channel.send("Укажите ID ролей, которые будут иметь доступ к тикетам, через пробел:")
@@ -287,6 +245,48 @@ class SetupBot(commands.Cog):
                 "UPDATE SET button_cooldown = $2"
 
         await self.save_settings(query, ctx.guild.id, cooldown)
+
+    async def ask_art_channel_id(self, ctx):
+        await ctx.channel.send("Укажите ID канала для артов\n"
+                               "Убедитесь, что у меня есть возможность отправлять там сообщения:")
+        art_channel_id = await self.wait_for_message(ctx)
+        art_channel = None
+
+        while not art_channel:
+            try:
+                art_channel_id = int(art_channel_id.content)
+                art_channel = self.bot.get_channel(art_channel_id)
+            except (ValueError, AttributeError):
+                await ctx.channel.send("Канал не найден, попробуйте ещё раз:")
+                art_channel_id = await self.wait_for_message(ctx)
+
+        query = "INSERT INTO guild_settings (guild_id, art_channel_id)" \
+                "VALUES ($1, $2)" \
+                "ON CONFLICT (guild_id) DO " \
+                "UPDATE SET art_channel_id = $2"
+
+        await self.save_settings(query, ctx.guild.id, art_channel_id)
+
+    async def ask_meme_channel_id(self, ctx):
+        await ctx.channel.send("Укажите ID канала для мемов\n"
+                               "Убедитесь, что у меня есть возможность отправлять там сообщения:")
+        meme_channel_id = await self.wait_for_message(ctx)
+        meme_channel = None
+
+        while not meme_channel:
+            try:
+                meme_channel_id = int(meme_channel_id.content)
+                meme_channel = self.bot.get_channel(meme_channel_id)
+            except (ValueError, AttributeError):
+                await ctx.channel.send("Канал не найден, попробуйте ещё раз:")
+                meme_channel_id = await self.wait_for_message(ctx)
+
+        query = "INSERT INTO guild_settings (guild_id, meme_channel_id)" \
+                "VALUES ($1, $2)" \
+                "ON CONFLICT (guild_id) DO " \
+                "UPDATE SET meme_channel_id = $2"
+
+        await self.save_settings(query, ctx.guild.id, meme_channel_id)
 
     @commands.slash_command()
     async def setup_creative_work(self, ctx: disnake.CommandInteraction):
