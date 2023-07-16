@@ -143,7 +143,12 @@ class SetupBot(commands.Cog):
         return await self.bot.wait_for("message", check=check)
 
     async def ask_voice_channels_category(self, ctx):
-        await ctx.channel.send("Укажите ID категории для временных `голосовых` каналов:")
+        await ctx.channel.send("**Добавьте в категорию следующие разрешения для бота:**\n"
+                               "`Просматривать каналы`\n"
+                               "`Управлять каналами`\n"
+                               "`Управлять правами`\n"
+                               "`Перемещать участников`")
+        await ctx.channel.send("Укажите ID категории для временных голосовых каналов:")
         category_id = await self.wait_for_message(ctx)
         category = None
         while not category:
@@ -165,9 +170,6 @@ class SetupBot(commands.Cog):
         on_join_channel = OnJoinChannel(self.bot)
         await on_join_channel.unload_guild_settings(ctx.guild.id)
 
-        await ctx.channel.send("В выбранной категории создан голосовой канал\n"
-                               "Вы можете изменить его название вручную в любое время")
-
         voice_channel = await ctx.guild.create_voice_channel(
             name="【➕】Создать",
             category=category,
@@ -180,6 +182,8 @@ class SetupBot(commands.Cog):
                 "UPDATE SET create_voice_channel_id = $2"
 
         await self.save_settings(query, ctx.guild.id, voice_channel.id)
+        await ctx.channel.send("В выбранной категории создан голосовой канал\n"
+                               "Вы можете изменить его название вручную в любое время")
 
     async def ask_tickets_category(self, ctx):
         await ctx.channel.send("Укажите ID категории для тикетов:")
