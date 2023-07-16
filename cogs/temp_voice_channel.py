@@ -29,10 +29,11 @@ class OnJoinChannel(commands.Cog):
             category=category,
             overwrites=category.overwrites
         )
-        overwrite = disnake.PermissionOverwrite()
-        overwrite.view_channel = True
-        overwrite.manage_permissions = True
-        overwrite.manage_channels = True
+        overwrite = disnake.PermissionOverwrite(
+            view_channel=True,
+            manage_permissions=True,
+            manage_channels=True
+        )
 
         await voice_channel.set_permissions(member, overwrite=overwrite)
         self.created_channels_ids.append(voice_channel.id)
