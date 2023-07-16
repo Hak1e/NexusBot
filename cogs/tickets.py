@@ -213,14 +213,17 @@ class Tickets(commands.Cog):
             await ctx.send(response, ephemeral=True)
         else:
             await self.activate_cooldown(ctx)
-            if button_id == "question_button":
-                await self.question_channel(ctx)
+            try:
+                if button_id == "question_button":
+                    await self.question_channel(ctx)
 
-            elif button_id == "report_button":
-                await self.report_channel(ctx)
+                elif button_id == "report_button":
+                    await self.report_channel(ctx)
 
-            elif button_id == "offer_button":
-                await self.offer_channel(ctx)
+                elif button_id == "offer_button":
+                    await self.offer_channel(ctx)
+            except:
+                await ctx.send("Не могу создать канал. Нет доступа", ephemeral=True)
 
     @commands.slash_command()
     async def create_tickets_creator(
