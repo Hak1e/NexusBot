@@ -45,7 +45,7 @@ class SetupBot(commands.Cog):
         self.view_list = []
         self.sent_messages = []
 
-    @commands.slash_command()
+    # @commands.slash_command()
     async def select_roles(
             self,
             ctx: disnake.CommandInteraction,
@@ -289,7 +289,11 @@ class SetupBot(commands.Cog):
         await self.save_settings(query, ctx.guild.id, meme_channel_id)
 
     @commands.slash_command()
-    async def setup_creative_work(self, ctx: disnake.CommandInteraction):
+    async def setup(self, ctx):
+        pass
+
+    @setup.sub_command()
+    async def creative_work(self, ctx: disnake.CommandInteraction):
         """Указать каналы для артов и мемов"""
         await ctx.send("Начало настройки каналов для артов и мемов")
         await self.ask_art_channel_id(ctx)
@@ -297,16 +301,16 @@ class SetupBot(commands.Cog):
 
         await ctx.channel.send("Настройка завершена")
 
-    @commands.slash_command()
-    async def setup_voice(self, ctx: disnake.CommandInteraction):
+    @setup.sub_command()
+    async def voice(self, ctx: disnake.CommandInteraction):
         """Указать ID категории для временных каналов"""
         await ctx.send("Начало настройки голосовых каналов")
         await self.ask_voice_channels_category(ctx)
 
         await ctx.channel.send("Настройка завершена")
 
-    @commands.slash_command()
-    async def setup_tickets(self, ctx: disnake.CommandInteraction):
+    @setup.sub_command()
+    async def tickets(self, ctx: disnake.CommandInteraction):
         """Указать категорию для тикетов и роли, которые будут иметь доступ к тикетам"""
         await ctx.send("Начало настройки тикетов")
         await self.ask_tickets_category(ctx)
@@ -315,8 +319,8 @@ class SetupBot(commands.Cog):
 
         await ctx.channel.send("Настройка завершена")
 
-    @commands.slash_command()
-    async def setup_all(self, ctx: disnake.CommandInteraction):
+    @setup.sub_command()
+    async def all(self, ctx: disnake.CommandInteraction):
         """Настроить всё сразу"""
         await ctx.send("Начало настройки всего по порядку")
         await self.ask_art_channel_id(ctx)
@@ -331,42 +335,46 @@ class SetupBot(commands.Cog):
         await ctx.channel.send("Настройка успешно завершена\nКонец настройки")
 
     @commands.slash_command()
-    async def edit_art_channel(self, ctx: disnake.CommandInteraction):
+    async def edit(self, ctx):
+        pass
+
+    @edit.sub_command()
+    async def art_channel(self, ctx: disnake.CommandInteraction):
         """Изменить ID канала для артов"""
         await ctx.send("Начало изменения какнала для артов")
         await self.ask_art_channel_id(ctx)
         await ctx.channel.send("Настройки изменены")
 
-    @commands.slash_command()
-    async def edit_meme_channel(self, ctx: disnake.CommandInteraction):
+    @edit.sub_command()
+    async def meme_channel(self, ctx: disnake.CommandInteraction):
         """Изменить ID канала для мемов"""
         await ctx.send("Начало изменения канала для мемов")
         await self.ask_meme_channel_id(ctx)
         await ctx.channel.send("Настройки изменены")
 
-    @commands.slash_command()
-    async def edit_tickets_category(self, ctx: disnake.CommandInteraction):
+    @edit.sub_command()
+    async def tickets_category(self, ctx: disnake.CommandInteraction):
         """Изменить ID категории для создаваемых тикетов"""
         await ctx.send("Начало изменения категории тикетов")
         await self.ask_tickets_category(ctx)
         await ctx.channel.send("Настройки изменены")
 
-    @commands.slash_command()
-    async def edit_roles_mention(self, ctx: disnake.CommandInteraction):
+    @edit.sub_command()
+    async def roles_mention(self, ctx: disnake.CommandInteraction):
         """Изменить ID ролей для упоминания при создании тикетов"""
         await ctx.send("Начало изменения упоминания ролей в тикетах")
         await self.ask_roles_mention_in_tickets(ctx)
         await ctx.channel.send("Настройки изменены")
 
-    @commands.slash_command()
-    async def edit_button_cooldown(self, ctx: disnake.CommandInteraction):
+    @edit.sub_command()
+    async def button_cooldown(self, ctx: disnake.CommandInteraction):
         """Изменить кулдаун нажатия на кнопку для каждого пользователя"""
         await ctx.send("Начало изменения кулдауна нажатия кнопок")
         await self.ask_button_cooldown(ctx)
         await ctx.channel.send("Настройки изменены")
 
-    @commands.slash_command()
-    async def edit_voice_channels_category(self, ctx: disnake.CommandInteraction):
+    @edit.sub_command()
+    async def voice_channels_category(self, ctx: disnake.CommandInteraction):
         """Изменить ID категории для голосовых каналов"""
         await ctx.send("Начало изменения категории голосовых каналов")
         await self.ask_voice_channels_category(ctx)
