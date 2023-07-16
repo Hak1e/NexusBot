@@ -3,7 +3,7 @@ import disnake
 from disnake.ext import commands
 from core.bot import Nexus
 from datetime import datetime, timedelta
-import asyncio
+
 
 class ButtonView(disnake.ui.View):
     def __init__(self):
@@ -55,11 +55,10 @@ class Tickets(commands.Cog):
         self.pool: asyncpg.Pool = self.bot.get_pool()
         self.category_id = None
         self.roles_id_to_mention = []
-        self.guild_settings_loaded = {}
-        self.guild_button_cooldown = {}
-        self.guild_button_cooldown_end_time = {}
-        self.guild_category_ids = {}
-        self.guild_mention_roles_ids = {}
+        self.guild_button_cooldown = None
+        self.guild_button_cooldown_end_time = None
+        self.guild_category_ids = None
+        self.guild_mention_roles_ids = None
 
     async def create_ticket_channel(
             self,
@@ -70,7 +69,7 @@ class Tickets(commands.Cog):
     ):
         guild = ctx.guild
         user = ctx.author
-        category = ctx.guild.get_channel(self.guild_category_ids[ctx.guild.id])
+        category = ctx.guild.get_channel(self.guild_category_ids)
         user_overwrite = disnake.PermissionOverwrite(
             send_messages=True,
             view_channel=True
@@ -112,7 +111,7 @@ class Tickets(commands.Cog):
         await ctx.response.defer()
 
     async def get_roles_and_text(self, ctx, message):
-        roles_to_add = [ctx.guild.get_role(role_id) for role_id in self.guild_mention_roles_ids[ctx.guild.id]]
+        roles_to_add = [ctx.guild.get_role(role_id) for role_id in self.guild_mention_roles_ids]
         roles_to_mention = ""
         for role in roles_to_add:
             roles_to_mention += f"{role.mention}, "
@@ -151,52 +150,45 @@ class Tickets(commands.Cog):
         )
 
     async def activate_cooldown(self, ctx):
-        self.guild_button_cooldown_end_time[ctx.guild.id] = datetime.now() + self.guild_button_cooldown[ctx.guild.id]
-        self.guild_button_cooldown_end_time[ctx.guild.id].isoformat()
+        self.guild_button_cooldown_end_time = datetime.now() + self.guild_button_cooldown
+        self.guild_button_cooldown_end_time.isoformat()
         # TODO: изменена БД. Добавить в кулдаун айди гильдии
         query = "INSERT INTO cooldowns (guild_id, user_id, button_cooldown_end_time) " \
                 "VALUES ($1, $2, $3) " \
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET user_id = $2, button_cooldown_end_time = $3"
-        await self.pool.execute(query, ctx.guild.id, ctx.author.id, self.guild_button_cooldown_end_time[ctx.guild.id])
+        await self.pool.execute(query, ctx.guild.id, ctx.author.id, self.guild_button_cooldown_end_time)
 
     @commands.Cog.listener()
     async def on_button_click(self, ctx: disnake.MessageInteraction):
         button_id = ctx.component.custom_id
         guild_id = ctx.guild.id
 
-        if guild_id not in self.guild_settings_loaded:
-            self.guild_settings_loaded[guild_id] = False
-
-        if not self.guild_settings_loaded[guild_id]:
-            try:
-
-                query = "SELECT tickets_category_id " \
-                        "FROM guild_settings " \
-                        "WHERE guild_id = $1"
-                self.guild_category_ids[guild_id] = await self.pool.fetchval(query, guild_id)
-
-                query = "SELECT roles_id_to_mention " \
-                        "FROM guild_settings " \
-                        "WHERE guild_id = $1"
-                self.guild_mention_roles_ids[guild_id] = list(await self.pool.fetchval(query, guild_id))
-
-                query = "SELECT button_cooldown " \
-                        "FROM guild_settings " \
-                        "WHERE guild_id = $1"
-                self.guild_button_cooldown[guild_id] = await self.pool.fetchval(query, guild_id)
-                self.guild_button_cooldown[guild_id] = timedelta(minutes=self.guild_button_cooldown[guild_id])
-
-                self.guild_settings_loaded[guild_id] = True
-            except:
-                await ctx.send(
-                    "Настройки для сервера не найдены. Обратитесь к администратору для настройки", ephemeral=True
-                )
-
         if button_id == "delete_channel_button":
-            channel = ctx.channel
-            await channel.delete()
+            await ctx.channel.delete()
             return
+
+        try:
+            query = "SELECT tickets_category_id " \
+                    "FROM guild_settings " \
+                    "WHERE guild_id = $1"
+            self.guild_category_ids = await self.pool.fetchval(query, guild_id)
+
+            query = "SELECT roles_id_to_mention " \
+                    "FROM guild_settings " \
+                    "WHERE guild_id = $1"
+            self.guild_mention_roles_ids = list(await self.pool.fetchval(query, guild_id))
+
+            query = "SELECT button_cooldown " \
+                    "FROM guild_settings " \
+                    "WHERE guild_id = $1"
+            self.guild_button_cooldown = await self.pool.fetchval(query, guild_id)
+            self.guild_button_cooldown = timedelta(minutes=self.guild_button_cooldown)
+
+        except:
+            await ctx.send(
+                "Настройки для сервера не найдены. Обратитесь к администратору для настройки", ephemeral=True
+            )
 
         cooldown_active = False
         response = ""
@@ -207,13 +199,12 @@ class Tickets(commands.Cog):
 
         row = await self.pool.fetchrow(query, ctx.guild.id, ctx.author.id)
         if row:
-            self.guild_button_cooldown_end_time[ctx.guild.id] = row["button_cooldown_end_time"]
-            tz_time = datetime.now().astimezone(self.guild_button_cooldown_end_time[ctx.guild.id].tzinfo)
+            self.guild_button_cooldown_end_time = row["button_cooldown_end_time"]
+            tz_time = datetime.now().astimezone(self.guild_button_cooldown_end_time.tzinfo)
 
-            if self.guild_button_cooldown_end_time[ctx.guild.id] and \
-                    self.guild_button_cooldown_end_time[ctx.guild.id] > tz_time:
-
-                remaining_time = self.guild_button_cooldown_end_time[ctx.guild.id] - tz_time
+            if self.guild_button_cooldown_end_time and \
+                    self.guild_button_cooldown_end_time > tz_time:
+                remaining_time = self.guild_button_cooldown_end_time - tz_time
                 remaining_time = str(remaining_time).split(".")[0]
                 response = f"Вы сможете нажать на кнопку ещё раз через {remaining_time} (часы:минуты:секунды)"
                 cooldown_active = True
@@ -221,7 +212,6 @@ class Tickets(commands.Cog):
         if cooldown_active:
             await ctx.send(response, ephemeral=True)
         else:
-            # await ctx.send(f"Ваш тикет скоро будет создан. Пожалуйста, ожидайте", ephemeral=True)
             await self.activate_cooldown(ctx)
             if button_id == "question_button":
                 await self.question_channel(ctx)
@@ -231,7 +221,6 @@ class Tickets(commands.Cog):
 
             elif button_id == "offer_button":
                 await self.offer_channel(ctx)
-
 
     @commands.slash_command()
     async def create_tickets_creator(
