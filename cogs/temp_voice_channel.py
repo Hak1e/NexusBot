@@ -35,7 +35,6 @@ class OnJoinChannel(commands.Cog):
         overwrite.manage_channels = True
 
         await voice_channel.set_permissions(member, overwrite=overwrite)
-        await voice_channel.set_permissions(member, channel_name=channel_name)
         self.created_channels_ids.append(voice_channel.id)
         await member.move_to(voice_channel)
 
