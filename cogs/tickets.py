@@ -266,41 +266,48 @@ class Tickets(commands.Cog):
                            "Встраивать ссылки\n"
                            )
 
-    async def member_overwrite(self, ctx, member, overwrite):
-        current_category_id = ctx.channel.category.id
+    async def is_ticket(self, ctx):
+        query = "SELECT tickets_category_id " \
+                "FROM guild_settings " \
+                "WHERE guild_id = $1"
+        category_id = await self.pool.fetchval(query, ctx.guild.id)
 
-        if self.category_id is None:
-            query = "SELECT tickets_category_id " \
-                    "FROM guild_settings " \
-                    "WHERE guild_id = $1"
-            self.category_id = await self.pool.fetchval(query, ctx.guild.id)
+        if ctx.channel.category.id == category_id:
+            return True
+        else:
+            return False
 
-        if current_category_id == self.category_id:
+    async def member_overwrite(self, ctx, member, overwrite, message):
+        if await self.is_ticket(ctx):
             await ctx.channel.set_permissions(member, overwrite=overwrite)
+            await ctx.channel.send(message)
         else:
             await ctx.send("Вы можете использовать эту команду только в тикетах", ephemeral=True)
 
     @commands.slash_command()
-    async def add_member(
+    async def user(self, ctx):
+        pass
+
+    @user.sub_command()
+    async def add(
             self,
             ctx: disnake.CommandInteraction,
             member: disnake.Member
     ):
         """Добавить участника в этот канал"""
         overwrite = disnake.PermissionOverwrite(view_channel=True)
-        await self.member_overwrite(ctx, member, overwrite)
-        await ctx.send(f"Пользователь {member.mention} добавлен в этот чат")
+        message = f"Пользователь {member.mention} добавлен в этот чат"
+        await self.member_overwrite(ctx, member, overwrite, message)
 
-    @commands.slash_command()
-    async def remove_member(
+    @user.sub_command()
+    async def remove(
             self,
             ctx: disnake.CommandInteraction,
             member: disnake.Member
     ):
         """Удалить участника из этого канала"""
-        overwrite = disnake.PermissionOverwrite(view_channel=True)
-        await self.member_overwrite(ctx, member, None)
-        await ctx.send(f"Пользователь {member.mention} удалён из этого чата")
+        message = f"Пользователь {member.mention} удалён из этого чата"
+        await self.member_overwrite(ctx, member, None, message)
 
 
 def setup(bot):
