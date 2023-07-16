@@ -255,9 +255,19 @@ class Tickets(commands.Cog):
                 url="https://media.discordapp.net/attachments/1015290335779364958/1015295923829608468/unknown.png")
         )
         embeds.append(embed2)
-        message = await ctx.channel.send(embeds=embeds, view=view)
+        try:
+            await ctx.channel.send(embeds=embeds, view=view)
+            await ctx.send("Создан embed с кнопками", ephemeral=True)
+        except:
+            await ctx.send("Не удалось отправить сообщение.\n"
+                           "Убедитесь, что я могу:"
+                           "Просматривать канал\n"
+                           "Отправлять сообщения\n"
+                           "Встраивать ссылки\n"
+                           "Прикреплять файлы"
+                           )
 
-        await ctx.send("Создан embed с кнопками", ephemeral=True)
+
 
     async def member_overwrite(self, ctx, member, overwrite):
         current_category_id = ctx.channel.category.id
