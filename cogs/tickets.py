@@ -283,7 +283,7 @@ class Tickets(commands.Cog):
     async def member_overwrite(self, ctx, member, overwrite, message):
         if await self.is_ticket(ctx):
             await ctx.channel.set_permissions(member, overwrite=overwrite)
-            await ctx.channel.send(message)
+            await ctx.send(message)
         else:
             await ctx.send("Вы можете использовать эту команду только в тикетах", ephemeral=True)
 
