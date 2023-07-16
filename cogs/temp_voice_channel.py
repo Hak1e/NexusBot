@@ -15,21 +15,14 @@ class OnJoinChannel(commands.Cog):
         self.channel_creator_id = None
         self.created_channels_ids = []
         self.custom_channel_name = None
-        self.permissions = None
 
     async def create_voice_channel(
             self,
             member: disnake.Member,
             channel_name: str = None,
-            overwrites=None
 
     ):
         category = member.guild.get_channel(self.category_id)
-        overwrite = disnake.PermissionOverwrite(
-            view_channel=True,
-            manage_permissions=True,
-            manage_channels=True
-        )
 
         channel_name = channel_name or f"{member.name}'s channel"
         voice_channel = await member.guild.create_voice_channel(
@@ -38,6 +31,11 @@ class OnJoinChannel(commands.Cog):
             overwrites=category.overwrites
         )
         self.created_channels_ids.append(voice_channel.id)
+        overwrite = disnake.PermissionOverwrite(
+            view_channel=True,
+            manage_permissions=True,
+            manage_channels=True
+        )
         await voice_channel.set_permissions(member, overwrite=overwrite)
 
         await member.move_to(voice_channel)
@@ -85,7 +83,6 @@ class OnJoinChannel(commands.Cog):
             self.custom_channel = await self.create_voice_channel(
                 member=member,
                 channel_name=self.custom_channel_name,
-                overwrites=self.permissions
             )
             query = "UPDATE guild_settings " \
                     "SET created_voice_channel_ids = array_append(created_voice_channel_ids, $2) " \
