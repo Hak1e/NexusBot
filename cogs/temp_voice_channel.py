@@ -19,7 +19,6 @@ class OnJoinChannel(commands.Cog):
             self,
             member: disnake.Member,
             channel_name: str = None,
-            overwrites=None
     ):
         category = member.guild.get_channel(self.category_id)
         channel_name = channel_name or f"{member.name}'s channel"
@@ -27,9 +26,18 @@ class OnJoinChannel(commands.Cog):
         voice_channel = await member.guild.create_voice_channel(
             name=channel_name,
             category=category,
-            overwrites=overwrites
+            overwrites=category.overwrites
         )
 
+        overwrite = disnake.PermissionOverwrite(
+            view_channel=True,
+            manage_permissions=True,
+            manage_channels=True
+        )
+        category_overwrites = category.overwrites
+        category_overwrites[member] = overwrite
+
+        await voice_channel.edit(overwrites=category_overwrites)
         self.created_channels_ids.append(voice_channel.id)
         await member.move_to(voice_channel)
 
@@ -73,19 +81,9 @@ class OnJoinChannel(commands.Cog):
             except:
                 pass
 
-            category_overwrites = current.channel.category.overwrites
-            overwrite = disnake.PermissionOverwrite(
-                view_channel=True,
-                manage_permissions=True,
-                manage_channels=True
-            )
-            category_overwrites[self.bot.user] = overwrite
-            category_overwrites[member] = overwrite
-
             self.custom_channel = await self.create_voice_channel(
                 member=member,
                 channel_name=self.custom_channel_name,
-                overwrites=category_overwrites
             )
             query = "UPDATE guild_settings " \
                     "SET created_voice_channel_ids = array_append(created_voice_channel_ids, $2) " \

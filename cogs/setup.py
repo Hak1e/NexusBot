@@ -144,8 +144,11 @@ class SetupBot(commands.Cog):
 
     async def ask_voice_channels_category(self, ctx):
         await ctx.channel.send("Укажите ID категории для временных голосовых каналов:")
-        await ctx.channel.send("**Перед этим добавьте следующие разрешения для бота:**\n"
-                               "`Права администратора`")
+        await ctx.channel.send("**Перед этим добавьте в категорию следующие разрешения для бота:**\n"
+                               "`Просматривать каналы`\n"
+                               "`Управлять каналами`\n"
+                               "`Управлять правами`\n"
+                               "`Перемещать участников`")
         category_id = await self.wait_for_message(ctx)
         category = None
         while not category:
