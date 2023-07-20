@@ -10,17 +10,13 @@ load_dotenv()
 emoji_like = os.getenv("EMOJI_LIKE")
 emoji_dislike = os.getenv("EMOJI_DISLIKE")
 
+
 # TODO: при отправке сообщения бот должен скинуть прикреплённую картинку в архив, скопировать её ссылку и уже потом отправить
 
 
 async def send_embed(
-        ctx: disnake.CommandInteraction,
-        bot: commands.InteractionBot,
-        image: disnake.Attachment,
-        description: str,
-        channel_id,
-        title: str = None
-):
+        ctx: disnake.CommandInteraction, bot: commands.InteractionBot, image: disnake.Attachment,
+        description: str, channel_id, title: str = None):
     channel = bot.get_channel(channel_id)
 
     if channel is None:
@@ -54,30 +50,18 @@ class SendMessages(commands.Cog):
         """Проверить, находится ли бот в сети"""
         await ctx.send("Pong!")
 
-
     @commands.slash_command()
     async def say(
-            self,
-            ctx: disnake.CommandInteraction,
-            message: str,
-            channel: Optional[disnake.TextChannel] = None
-    ):
+            self, ctx: disnake.CommandInteraction, message: str, channel: Optional[disnake.TextChannel] = None):
         """Написать сообщение от лица бота"""
-
         channel = channel or ctx.channel
-
         await channel.send(message)
-
         await ctx.send("Сообщение отправлено", ephemeral=True)
 
     @commands.slash_command()
     async def art(
-            self,
-            ctx: disnake.CommandInteraction,
-            image: disnake.Attachment,
-            comment: Optional[str] = None,
-            author: Optional[str] = None
-):
+            self, ctx: disnake.CommandInteraction, image: disnake.Attachment, comment: Optional[str] = None,
+            author: Optional[str] = None):
         """Выложить арт
 
         Parameters
@@ -89,9 +73,10 @@ class SendMessages(commands.Cog):
         """
 
         async with self.pool.acquire() as conn:
-            query = "SELECT art_channel_id FROM guild_settings WHERE guild_id = $1"
+            query = "SELECT art_channel_id " \
+                    "FROM guild_settings " \
+                    "WHERE guild_id = $1"
             self.art_channel_id = await conn.fetchval(query, ctx.guild.id)
-
 
         if author:
             description = f"**Автор:** {author}"
@@ -110,11 +95,7 @@ class SendMessages(commands.Cog):
 
     @commands.slash_command()
     async def meme(
-            self,
-            ctx: disnake.CommandInteraction,
-            image: disnake.Attachment,
-            author: Optional[str] = None,
-    ):
+            self, ctx: disnake.CommandInteraction, image: disnake.Attachment, author: Optional[str] = None):
         """Выложить мем
 
         Parameters
@@ -125,9 +106,10 @@ class SendMessages(commands.Cog):
         """
 
         async with self.pool.acquire() as conn:
-            query = "SELECT meme_channel_id FROM guild_settings WHERE guild_id = $1"
+            query = "SELECT meme_channel_id " \
+                    "FROM guild_settings " \
+                    "WHERE guild_id = $1"
             self.meme_channel_id = await conn.fetchval(query, ctx.guild.id)
-
 
         if author:
             description = f"**Автор:** {author}"
@@ -141,16 +123,13 @@ class SendMessages(commands.Cog):
             channel_id=self.meme_channel_id
         )
 
+
 class PingMembersInVoice(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     @commands.slash_command()
-    async def event_members(
-            self,
-            ctx: disnake.CommandInteraction,
-            bounty: int = None
-    ):
+    async def event_members(self, ctx: disnake.CommandInteraction, bounty: int = None):
         """Оповестить всех, кто находится в голосовом канале с Вами
 
         Parameters
@@ -182,6 +161,7 @@ class PingMembersInVoice(commands.Cog):
             )
         )
         await ctx.send(embed=embed)
+
 
 def setup(bot):
     bot.add_cog(SendMessages(bot))

@@ -48,7 +48,7 @@ class OnJoinChannel(commands.Cog):
 
     async def delete_voice_channel(self, member: disnake.Member, before: disnake.VoiceState):
         self.custom_channel_name = before.channel.name
-
+        # TODO: узнать автора канала и присвоить имя конкретно для него, а не последнего вышедшего из канала
         query = "INSERT INTO custom_voice (guild_id, user_id, channel_name)" \
                 "VALUES ($1, $2, $3)" \
                 "ON CONFLICT (guild_id, user_id) " \

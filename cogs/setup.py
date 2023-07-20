@@ -46,11 +46,7 @@ class SetupBot(commands.Cog):
         self.sent_messages = []
 
     # @commands.slash_command()
-    async def select_roles(
-            self,
-            ctx: disnake.CommandInteraction,
-            roles_reverse: bool = True
-    ):
+    async def select_roles(self, ctx: disnake.CommandInteraction, roles_reverse: bool = True):
         """Настройки временного канала. Выбор ролей для доступа ко временному текстовому каналу
         Parameters
         ----------
