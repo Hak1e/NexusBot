@@ -26,7 +26,9 @@ CREATE TABLE IF NOT EXISTS cooldowns (
 );
 
 CREATE TABLE IF NOT EXISTS custom_voice (
-    guild_id_user_id TEXT PRIMARY KEY,
-    channel_name TEXT
+    guild_id BIGINT,
+    user_id BIGINT,
+    channel_name TEXT,
+    PRIMARY KEY (guild_id, user_id)
 );
 
