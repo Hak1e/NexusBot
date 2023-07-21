@@ -77,7 +77,7 @@ class OnJoinChannel(commands.Cog):
         if result:
             self.created_channels_ids = list(result)
         else:
-            self.created_channels_ids = None
+            self.created_channels_ids = []
 
     @commands.Cog.listener()
     async def on_voice_state_update(
