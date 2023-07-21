@@ -1,10 +1,8 @@
 import disnake
 from disnake.ext import commands
-from disnake import SelectOption
 import os
 from dotenv import load_dotenv
 from core.bot import Nexus
-from cogs.temp_voice_channel import OnJoinChannel
 import asyncpg
 
 load_dotenv()
@@ -46,7 +44,11 @@ class SetupBot(commands.Cog):
         self.sent_messages = []
 
     # @commands.slash_command()
-    async def select_roles(self, ctx: disnake.CommandInteraction, roles_reverse: bool = True):
+    async def select_roles(
+            self,
+            ctx: disnake.CommandInteraction,
+            roles_reverse: bool = True
+    ):
         """Настройки временного канала. Выбор ролей для доступа ко временному текстовому каналу
         Parameters
         ----------
@@ -114,7 +116,7 @@ class SetupBot(commands.Cog):
                     if isinstance(child, SelectRoles):
                         all_selected_roles_id.extend([int(role_id) for role_id in child.selected_roles_id])
 
-            query = "UPDATE guild_settings " \
+            query = "UPDATE text_channels " \
                     "SET roles_id_to_mention = roles_id_to_mention || $2 " \
                     "WHERE guild_id = $1"
             await self.pool.execute(
@@ -127,10 +129,6 @@ class SetupBot(commands.Cog):
                 await message.delete()
 
             await ctx.send("Настройка завершена\nКонец настройки", ephemeral=True)
-
-    async def save_settings(self, query, *args):
-        async with self.pool.acquire() as conn:
-            await conn.execute(query, *args)
 
     async def wait_for_message(self, ctx):
         def check(msg):
@@ -162,7 +160,8 @@ class SetupBot(commands.Cog):
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET voice_channel_category_id = $2"
 
-        await self.save_settings(query, ctx.guild.id, category_id)
+        # await self.pool.execute(query, ctx.guild.id, category_id)
+        await self.pool.execute(query, ctx.guild.id, category_id)
 
         voice_channel = await ctx.guild.create_voice_channel(
             name="【➕】Создать",
@@ -170,12 +169,12 @@ class SetupBot(commands.Cog):
             overwrites=category.overwrites
         )
 
-        query = "INSERT INTO guild_settings (guild_id, create_voice_channel_id)" \
+        query = "INSERT INTO guild_settings (guild_id, channel_creator_id)" \
                 "VALUES ($1, $2)" \
                 "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET create_voice_channel_id = $2"
+                "UPDATE SET channel_creator_id = $2"
 
-        await self.save_settings(query, ctx.guild.id, voice_channel.id)
+        await self.pool.execute(query, ctx.guild.id, voice_channel.id)
         await ctx.channel.send("В выбранной категории создан голосовой канал\n"
                                "Вы можете изменить его название вручную в любое время")
 
@@ -197,7 +196,7 @@ class SetupBot(commands.Cog):
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET tickets_category_id = $2"
 
-        await self.save_settings(query, ctx.guild.id, text_channels_category_id)
+        await self.pool.execute(query, ctx.guild.id, text_channels_category_id)
 
     async def ask_roles_mention_in_tickets(self, ctx):
         await ctx.channel.send("Укажите ID ролей, которые будут иметь доступ к тикетам, через пробел:")
@@ -216,12 +215,12 @@ class SetupBot(commands.Cog):
                 input_roles = await self.wait_for_message(ctx)
                 roles_id = input_roles.content.split()
 
-        query = "INSERT INTO guild_settings (guild_id, roles_id_to_mention)" \
+        query = "INSERT INTO text_channels (guild_id, roles_id_to_mention)" \
                 "VALUES ($1, $2)" \
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET roles_id_to_mention = $2"
 
-        await self.save_settings(query, ctx.guild.id, roles_id)
+        await self.pool.execute(query, ctx.guild.id, roles_id)
 
     async def ask_button_cooldown(self, ctx):
         await ctx.channel.send("Укажите время (в минутах) между нажатем кнопок для одного пользователя:")
@@ -235,12 +234,12 @@ class SetupBot(commands.Cog):
                 input_cooldown = await self.wait_for_message(ctx)
                 cooldown = None
 
-        query = "INSERT INTO guild_settings (guild_id, button_cooldown)" \
+        query = "INSERT INTO cooldown (guild_id, button_cooldown)" \
                 "VALUES ($1, $2)" \
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET button_cooldown = $2"
 
-        await self.save_settings(query, ctx.guild.id, cooldown)
+        await self.pool.execute(query, ctx.guild.id, cooldown)
 
     async def ask_art_channel_id(self, ctx):
         await ctx.channel.send("Укажите ID канала для артов\n"
@@ -256,12 +255,12 @@ class SetupBot(commands.Cog):
                 await ctx.channel.send("Канал не найден, попробуйте ещё раз:")
                 art_channel_id = await self.wait_for_message(ctx)
 
-        query = "INSERT INTO guild_settings (guild_id, art_channel_id)" \
+        query = "INSERT INTO text_channels (guild_id, art_channel_id)" \
                 "VALUES ($1, $2)" \
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET art_channel_id = $2"
 
-        await self.save_settings(query, ctx.guild.id, art_channel_id)
+        await self.pool.execute(query, ctx.guild.id, art_channel_id)
 
     async def ask_meme_channel_id(self, ctx):
         await ctx.channel.send("Укажите ID канала для мемов\n"
@@ -277,12 +276,12 @@ class SetupBot(commands.Cog):
                 await ctx.channel.send("Канал не найден, попробуйте ещё раз:")
                 meme_channel_id = await self.wait_for_message(ctx)
 
-        query = "INSERT INTO guild_settings (guild_id, meme_channel_id)" \
+        query = "INSERT INTO text_channels (guild_id, meme_channel_id)" \
                 "VALUES ($1, $2)" \
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET meme_channel_id = $2"
 
-        await self.save_settings(query, ctx.guild.id, meme_channel_id)
+        await self.pool.execute(query, ctx.guild.id, meme_channel_id)
 
     @commands.slash_command()
     async def setup(self, ctx):

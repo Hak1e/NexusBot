@@ -9,15 +9,18 @@ class ButtonView(disnake.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @disnake.ui.button(label="Вопрос", style=disnake.ButtonStyle.grey, custom_id="question_button", emoji="❔")
+    @disnake.ui.button(label="Вопрос", style=disnake.ButtonStyle.grey,
+                       custom_id="question_button", emoji="❔")
     async def question_button(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
         pass
 
-    @disnake.ui.button(label="Жалоба", style=disnake.ButtonStyle.red, custom_id="report_button", emoji="❕")
+    @disnake.ui.button(label="Жалоба", style=disnake.ButtonStyle.red,
+                       custom_id="report_button", emoji="❕")
     async def report_button(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
         pass
 
-    @disnake.ui.button(label="Предложение", style=disnake.ButtonStyle.blurple, custom_id="offer_button", emoji="📝")
+    @disnake.ui.button(label="Предложение", style=disnake.ButtonStyle.blurple,
+                       custom_id="offer_button", emoji="📝")
     async def offer_button(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
         pass
 
@@ -34,11 +37,19 @@ class Tickets(commands.Cog):
         self.guild_mention_roles_ids = None
 
     async def create_ticket_channel(
-            self, ctx: disnake.MessageInteraction, roles: list, ping_roles: str, channel_name: str):
+            self,
+            ctx: disnake.MessageInteraction,
+            roles: list,
+            ping_roles: str,
+            channel_name: str
+    ):
         guild = ctx.guild
         user = ctx.author
         category = ctx.guild.get_channel(self.guild_category_ids)
-        user_overwrite = disnake.PermissionOverwrite(send_messages=True, view_channel=True)
+        user_overwrite = disnake.PermissionOverwrite(
+            send_messages=True,
+            view_channel=True
+        )
 
         overwrites = {
             guild.default_role: disnake.PermissionOverwrite(read_messages=False),
@@ -67,7 +78,10 @@ class Tickets(commands.Cog):
                 )
             ]
         )
-        allowed_mentions = disnake.AllowedMentions(users=True, roles=True)
+        allowed_mentions = disnake.AllowedMentions(
+            users=True,
+            roles=True
+        )
 
         await channel.send(ping_roles, allowed_mentions=allowed_mentions)
         await ctx.response.defer()
@@ -114,8 +128,7 @@ class Tickets(commands.Cog):
     async def activate_cooldown(self, ctx):
         self.guild_button_cooldown_end_time = datetime.now() + self.guild_button_cooldown
         self.guild_button_cooldown_end_time.isoformat()
-        # TODO: изменена БД. Добавить в кулдаун айди гильдии
-        query = "INSERT INTO cooldowns (guild_id, user_id, button_cooldown_end_time) " \
+        query = "INSERT INTO cooldown (guild_id, user_id, button_cooldown_end_time) " \
                 "VALUES ($1, $2, $3) " \
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET user_id = $2, button_cooldown_end_time = $3"
@@ -137,12 +150,12 @@ class Tickets(commands.Cog):
             self.guild_category_ids = await self.pool.fetchval(query, guild_id)
 
             query = "SELECT roles_id_to_mention " \
-                    "FROM guild_settings " \
+                    "FROM text_channels " \
                     "WHERE guild_id = $1"
             self.guild_mention_roles_ids = list(await self.pool.fetchval(query, guild_id))
 
             query = "SELECT button_cooldown " \
-                    "FROM guild_settings " \
+                    "FROM cooldown " \
                     "WHERE guild_id = $1"
             self.guild_button_cooldown = await self.pool.fetchval(query, guild_id)
             self.guild_button_cooldown = timedelta(minutes=self.guild_button_cooldown)
@@ -156,7 +169,7 @@ class Tickets(commands.Cog):
         response = ""
 
         query = "SELECT button_cooldown_end_time " \
-                "FROM cooldowns " \
+                "FROM cooldown " \
                 "WHERE guild_id = $1 and user_id = $2"
 
         row = await self.pool.fetchrow(query, ctx.guild.id, ctx.author.id)
@@ -188,7 +201,11 @@ class Tickets(commands.Cog):
                 await ctx.send("Не могу создать канал. Нет доступа к категории тикетов", ephemeral=True)
 
     @commands.slash_command()
-    async def create_tickets_creator(self, ctx: disnake.CommandInteraction, image: disnake.Attachment = None):
+    async def create_tickets_creator(
+            self,
+            ctx: disnake.CommandInteraction,
+            image: disnake.Attachment = None
+    ):
         """Создать embed с кнопками
         Parameters
         ----------
@@ -250,14 +267,22 @@ class Tickets(commands.Cog):
         pass
 
     @user.sub_command()
-    async def add(self, ctx: disnake.CommandInteraction, member: disnake.Member):
+    async def add(
+            self,
+            ctx: disnake.CommandInteraction,
+            member: disnake.Member
+    ):
         """Добавить участника в этот канал"""
         overwrite = disnake.PermissionOverwrite(view_channel=True)
         message = f"Пользователь {member.mention} добавлен в этот чат"
         await self.member_overwrite(ctx, member, overwrite, message)
 
     @user.sub_command()
-    async def remove(self, ctx: disnake.CommandInteraction, member: disnake.Member):
+    async def remove(
+            self,
+            ctx: disnake.CommandInteraction,
+            member: disnake.Member
+    ):
         """Удалить участника из этого канала"""
         message = f"Пользователь {member.mention} удалён из этого чата"
         await self.member_overwrite(ctx, member, None, message)
