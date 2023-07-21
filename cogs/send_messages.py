@@ -89,7 +89,7 @@ class SendMessages(commands.Cog):
         """
 
         async with self.pool.acquire() as conn:
-            query = "SELECT art_channel_id FROM guild_settings WHERE guild_id = $1"
+            query = "SELECT art_channel_id FROM text_channels WHERE guild_id = $1"
             self.art_channel_id = await conn.fetchval(query, ctx.guild.id)
 
         if author:
@@ -124,7 +124,7 @@ class SendMessages(commands.Cog):
         """
 
         async with self.pool.acquire() as conn:
-            query = "SELECT meme_channel_id FROM guild_settings WHERE guild_id = $1"
+            query = "SELECT meme_channel_id FROM text_channels WHERE guild_id = $1"
             self.meme_channel_id = await conn.fetchval(query, ctx.guild.id)
 
         if author:
