@@ -1,8 +1,8 @@
 DROP TABLE IF EXISTS guild_settings;
 DROP TABLE IF EXISTS text_channels;
-DROP TABLE IF EXISTS cooldowns;
 DROP TABLE IF EXISTS cooldown;
 DROP TABLE IF EXISTS custom_voice;
+DROP TABLE IF EXISTS tournament_blacklist;
 
 
 CREATE TABLE IF NOT EXISTS guild_settings (
@@ -34,3 +34,9 @@ CREATE TABLE IF NOT EXISTS custom_voice (
     PRIMARY KEY (guild_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS tournament_blacklist (
+    guild_id BIGINT,
+    user_id BIGINT,
+    reason TEXT,
+    PRIMARY KEY (guild_id, user_id)
+);
