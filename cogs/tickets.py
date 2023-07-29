@@ -36,20 +36,12 @@ class Tickets(commands.Cog):
         self.guild_category_ids = None
         self.guild_mention_roles_ids = None
 
-    async def create_ticket_channel(
-            self,
-            ctx: disnake.MessageInteraction,
-            roles: list,
-            ping_roles: str,
-            channel_name: str
-    ):
+    async def create_ticket_channel(self, ctx: disnake.MessageInteraction, roles: list,
+                                    ping_roles: str, channel_name: str):
         guild = ctx.guild
         user = ctx.author
         category = ctx.guild.get_channel(self.guild_category_ids)
-        user_overwrite = disnake.PermissionOverwrite(
-            send_messages=True,
-            view_channel=True
-        )
+        user_overwrite = disnake.PermissionOverwrite(send_messages=True, view_channel=True)
 
         overwrites = {
             guild.default_role: disnake.PermissionOverwrite(read_messages=False),
@@ -60,28 +52,18 @@ class Tickets(commands.Cog):
         for role in roles:
             overwrites[role] = user_overwrite
 
-        channel = await guild.create_text_channel(
-            name=f"{user}-{channel_name}",
-            category=category,
-            overwrites=overwrites
-        )
+        channel = await guild.create_text_channel(name=f"{user}-{channel_name}", category=category,
+                                                  overwrites=overwrites)
         embed = disnake.Embed(description=f"Чтобы закрыть тикет, нажмите кнопку ниже")
 
         await channel.send(
             embed=embed,
             components=[
-                disnake.ui.Button(
-                    label="Закрыть тикет",
-                    style=disnake.ButtonStyle.red,
-                    custom_id="delete_channel_button",
-                    emoji="❌"
-                )
+                disnake.ui.Button(label="Закрыть тикет", style=disnake.ButtonStyle.red,
+                                  custom_id="delete_channel_button", emoji="❌")
             ]
         )
-        allowed_mentions = disnake.AllowedMentions(
-            users=True,
-            roles=True
-        )
+        allowed_mentions = disnake.AllowedMentions(users=True, roles=True)
 
         await channel.send(ping_roles, allowed_mentions=allowed_mentions)
         await ctx.response.defer()
@@ -97,33 +79,21 @@ class Tickets(commands.Cog):
     async def question_channel(self, ctx):
         roles_to_add, roles_to_mention = \
             await self.get_roles_and_text(ctx, f"вопрос от {ctx.author.mention}")
-        await self.create_ticket_channel(
-            ctx=ctx,
-            roles=roles_to_add,
-            ping_roles=roles_to_mention,
-            channel_name="вопрос"
-        )
+        await self.create_ticket_channel(ctx=ctx, roles=roles_to_add,
+                                         ping_roles=roles_to_mention, channel_name="вопрос")
 
     async def report_channel(self, ctx):
         roles_to_add, roles_to_mention = \
             await self.get_roles_and_text(ctx, f"жалоба от {ctx.author.mention}")
-        await self.create_ticket_channel(
-            ctx=ctx,
-            roles=roles_to_add,
-            ping_roles=roles_to_mention,
-            channel_name="жалоба"
-        )
+        await self.create_ticket_channel(ctx=ctx, roles=roles_to_add,
+                                         ping_roles=roles_to_mention, channel_name="жалоба")
 
     async def offer_channel(self, ctx):
         roles_to_add, roles_to_mention = \
             await self.get_roles_and_text(ctx, f"{ctx.author.mention} хочет что-то предложить")
 
-        await self.create_ticket_channel(
-            ctx=ctx,
-            roles=roles_to_add,
-            ping_roles=roles_to_mention,
-            channel_name="предложение"
-        )
+        await self.create_ticket_channel(ctx=ctx, roles=roles_to_add,
+                                         ping_roles=roles_to_mention, channel_name="предложение")
 
     async def activate_cooldown(self, ctx):
         self.guild_button_cooldown_end_time = datetime.now() + self.guild_button_cooldown
@@ -141,6 +111,10 @@ class Tickets(commands.Cog):
 
         if button_id == "delete_channel_button":
             await ctx.channel.delete()
+            return
+
+        class_buttons_ids = ["question_button", "report_button", "offer_button"]
+        if button_id not in class_buttons_ids:
             return
 
         try:
@@ -188,24 +162,20 @@ class Tickets(commands.Cog):
             await ctx.send(response, ephemeral=True)
         else:
             try:
-                if button_id == "question_button":
-                    await self.question_channel(ctx)
+                match button_id:
+                    case "question_button":
+                        await self.question_channel(ctx)
+                    case "report_button":
+                        await self.report_channel(ctx)
+                    case "offer_button":
+                        await self.offer_channel(ctx)
 
-                elif button_id == "report_button":
-                    await self.report_channel(ctx)
-
-                elif button_id == "offer_button":
-                    await self.offer_channel(ctx)
                 await self.activate_cooldown(ctx)
             except:
                 await ctx.send("Не могу создать канал. Нет доступа к категории тикетов", ephemeral=True)
 
     @commands.slash_command()
-    async def create_tickets_creator(
-            self,
-            ctx: disnake.CommandInteraction,
-            image: disnake.Attachment = None
-    ):
+    async def create_tickets_creator(self, ctx: disnake.CommandInteraction, image: disnake.Attachment = None):
         """Создать embed с кнопками
         Parameters
         ----------
@@ -267,22 +237,14 @@ class Tickets(commands.Cog):
         pass
 
     @user.sub_command()
-    async def add(
-            self,
-            ctx: disnake.CommandInteraction,
-            member: disnake.Member
-    ):
+    async def add(self, ctx: disnake.CommandInteraction, member: disnake.Member):
         """Добавить участника в этот канал"""
         overwrite = disnake.PermissionOverwrite(view_channel=True)
         message = f"Пользователь {member.mention} добавлен в этот чат"
         await self.member_overwrite(ctx, member, overwrite, message)
 
     @user.sub_command()
-    async def remove(
-            self,
-            ctx: disnake.CommandInteraction,
-            member: disnake.Member
-    ):
+    async def remove(self, ctx: disnake.CommandInteraction, member: disnake.Member):
         """Удалить участника из этого канала"""
         message = f"Пользователь {member.mention} удалён из этого чата"
         await self.member_overwrite(ctx, member, None, message)
