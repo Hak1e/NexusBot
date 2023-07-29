@@ -56,9 +56,6 @@ class OnJoinChannel(commands.Cog):
                 "WHERE guild_id = $1 and channel_id = $2"
         self.channel_author_id = await self.pool.fetchval(query, member.guild.id, channel.id)
 
-        # if self.channel_author_id is None:
-        #     return
-
         query = "INSERT INTO custom_voice (guild_id, user_id, channel_id, channel_name)" \
                 "VALUES ($1, $2, $3, $4)" \
                 "ON CONFLICT (guild_id, user_id) DO UPDATE " \
@@ -109,7 +106,7 @@ class OnJoinChannel(commands.Cog):
         # query = "UPDATE custom_voice " \
         #         "SET custom_channel_name = $2, permissions = $3 " \
         #         "WHERE channel_creator_id = $1"
-        # await self.pool.execute(query, member.id, self.custom_channel_name, self.permissions)
+        # await self.pool.execute(query, member_or_id.id, self.custom_channel_name, self.permissions)
 
 
 def setup(bot):
