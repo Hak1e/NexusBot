@@ -40,3 +40,10 @@ CREATE TABLE IF NOT EXISTS tournament_blacklist (
     reason TEXT,
     PRIMARY KEY (guild_id, user_id)
 );
+
+CREATE TABLE IF NOT EXISTS emoji_reactions (
+    guild_id BIGINT PRIMARY KEY,
+    _like TEXT,
+    _dislike TEXT
+);
+
