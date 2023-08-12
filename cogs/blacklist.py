@@ -71,9 +71,7 @@ class Tournament(commands.Cog):
         pass
 
     @blacklist.sub_command()
-    async def add(
-            self, ctx: disnake.CommandInteraction, member_or_id: disnake.User,
-            reason: str):
+    async def add(self, ctx: disnake.CommandInteraction, member_or_id: disnake.User, reason: str):
         """Добавить участника в чёрный список
         Parameters
         ----------
@@ -89,8 +87,7 @@ class Tournament(commands.Cog):
         await ctx.send(f"{member_or_id.name} добавлен в чёрный список", ephemeral=True)
 
     @blacklist.sub_command()
-    async def remove(
-            self, ctx: disnake.CommandInteraction, member_or_id: disnake.User):
+    async def remove(self, ctx: disnake.CommandInteraction, member_or_id: disnake.User):
         """Убрать участника из чёрного списка
         Parameters
         ----------
