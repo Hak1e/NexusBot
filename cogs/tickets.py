@@ -175,22 +175,26 @@ class Tickets(commands.Cog):
                 await ctx.send("Не могу создать канал. Нет доступа к категории тикетов", ephemeral=True)
 
     @commands.slash_command()
-    async def create_tickets_creator(self, ctx: disnake.CommandInteraction, image: disnake.Attachment = None):
+    async def create(self, ctx):
+        pass
+
+    @create.sub_command()
+    async def tickets_creator(self, ctx: disnake.CommandInteraction, image_url: str = None):
         """Создать embed с кнопками
         Parameters
         ----------
         ctx: command interaction
-        image: добавить изображение (отдельным сообщением). Рекомендуется для большей привлекательности
+        image_url: Добавить изображение
         """
         view = ButtonView()
         embeds = []
-        if image:
+        if image_url:
             embed1 = (
                 disnake.Embed(
                     description="",
                     color=0x3f8fdf,
                 )
-                .set_image(image)
+                .set_image(url=image_url)
             )
             embeds.append(embed1)
 
