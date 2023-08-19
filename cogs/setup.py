@@ -129,6 +129,7 @@ class SetupBot(commands.Cog):
     async def ask_emojis(self, ctx):
         await ctx.channel.send("Укажите эмодзи лайка и дизлайка через пробел:")
         answer = await self.wait_for_message(ctx)
+        answer = answer.content.split()
         emojis = []
 
         while not emojis:
@@ -292,12 +293,14 @@ class SetupBot(commands.Cog):
         await ctx.channel.send("В выбранной категории создан голосовой канал\n"
                                "Вы можете изменить его название вручную в любое время")
 
+    # region Setup commands
     @commands.slash_command()
     async def setup(self, ctx):
         pass
 
     @setup.sub_command()
-    async def emojis(self, ctx: disnake.CommandInteraction):
+    async def reactions(self, ctx: disnake.CommandInteraction): ##############
+        """Настроить эмодзи"""
         await ctx.send("Начало настройки эмодзи")
         await self.ask_emojis(ctx)
         await ctx.channel.send("Настройка завершена")
@@ -305,6 +308,7 @@ class SetupBot(commands.Cog):
     @setup.sub_command()
     async def creative_work(self, ctx: disnake.CommandInteraction):
         """Указать каналы для артов и мемов"""
+        print(f"Self: {self}\nCtx: {ctx}")
         await ctx.send("Начало настройки каналов для артов и мемов")
         await self.ask_art_channel_id(ctx)
         await self.ask_meme_channel_id(ctx)
@@ -342,6 +346,9 @@ class SetupBot(commands.Cog):
 
         await ctx.channel.send("Настройка успешно завершена\nКонец настройки")
 
+    # endregion
+
+    # region Edit commands
     @commands.slash_command()
     async def edit(self, ctx):
         pass
@@ -465,6 +472,78 @@ class SetupBot(commands.Cog):
             await self.pool.execute(query, ctx.guild.id, voice_channel_id)
 
         await ctx.send("Настройки сохранены")
+
+    # endregion
+
+    @commands.slash_command()
+    async def settings(self, ctx: disnake.ApplicationCommandInteraction, ephemeral: bool = False):
+        """Показать настройки сервера"""
+        query = ("SELECT * "
+                 "FROM text_channels "
+                 "WHERE guild_id = $1")
+        result = await self.pool.fetch(query, ctx.guild.id)
+        art_channel_mention, meme_channel_mention, mention_roles = None, None, []
+        if result:
+            result = dict(result[0])
+            art_channel_id = result.get("art_channel_id")
+            meme_channel_id = result.get("meme_channel_id")
+            mention_roles_ids = result.get("roles_id_to_mention")
+
+            art_channel_mention = ctx.guild.get_channel(art_channel_id).mention
+            meme_channel_mention = ctx.guild.get_channel(meme_channel_id).mention
+            mention_roles = [f"{ctx.guild.get_role(role_id).mention}" for role_id in mention_roles_ids]
+
+        query = ("SELECT * "
+                 "FROM emoji_reactions "
+                 "WHERE guild_id = $1")
+        result = await self.pool.fetch(query, ctx.guild.id)
+        like, dislike = None, None
+        if result:
+            result = dict(result[0])
+            like = result.get("_like")
+            dislike = result.get("_dislike")
+
+        query = ("SELECT * "
+                 "FROM guild_settings "
+                 "WHERE guild_id = $1")
+        result = await self.pool.fetch(query, ctx.guild.id)
+        tickets_category, voice_category, channel_creator_mention = None, None, None
+        if result:
+            result = dict(result[0])
+            tickets_category_id = result.get("tickets_category_id")
+            voice_category_id = result.get("voice_channel_category_id")
+            channel_creator_id = result.get("channel_creator_id")
+
+            tickets_category = ctx.guild.get_channel(tickets_category_id)
+            voice_category = ctx.guild.get_channel(voice_category_id)
+            channel_creator_mention = ctx.guild.get_channel(channel_creator_id).mention
+
+        query = ("SELECT button_cooldown "
+                 "FROM cooldown "
+                 "WHERE guild_id = $1")
+        result = await self.pool.fetch(query, ctx.guild.id)
+        button_cooldown = None
+        if result:
+            result = dict(result[0])
+            button_cooldown = result.get("button_cooldown")
+
+        embed = (
+            disnake.Embed(
+                title="Настройки сервера",
+                color=disnake.Color.blurple()
+            )
+            .add_field("Канал для артов", art_channel_mention, inline=True)
+            .add_field("Канал для мемов", meme_channel_mention, inline=True)
+            .add_field("Реакции под постами", f"\n{like} {dislike}", inline=True)
+            .add_field("Категория тикетов", tickets_category, inline=True)
+            .add_field("Роли для упоминания", '\n'.join(mention_roles) if mention_roles else None, inline=True)
+            .add_field("Кулдаун кнопок (в минутах)", button_cooldown, inline=True)
+            .add_field("Категория голосовых каналов", voice_category, inline=True)
+            .add_field("Генератор голосовых каналов", channel_creator_mention, inline=True)
+            .add_field("", "", inline=True)
+        )
+
+        await ctx.send(embed=embed, ephemeral=ephemeral)
 
 
 def setup(bot):
