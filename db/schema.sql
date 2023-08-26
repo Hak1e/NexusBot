@@ -55,8 +55,16 @@ CREATE TABLE IF NOT EXISTS bot_blacklist (
 );
 
 CREATE TABLE IF NOT EXISTS journal (
-    user_id BIGINT,
     guild_id BIGINT,
+    user_id BIGINT,
     notes TEXT[],
-    PRIMARY KEY (user_id, guild_id)
+    PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS penalties (
+    guild_id BIGINT,
+    user_id BIGINT,
+    warns TEXT[],
+    timeout_data json DEFAULT '{}'::json,
+    PRIMARY KEY (guild_id, user_id)
 );
