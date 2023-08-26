@@ -22,14 +22,31 @@ class SelectRoles(disnake.ui.Select):
         )
         self.selected_roles_id = []
 
-    async def callback(self, interaction: disnake.MessageInteraction):
-        if not interaction.values:
-            await interaction.response.defer()
+    async def callback(self, ctx: disnake.MessageInteraction):
+        if not ctx.values:
+            await ctx.response.defer()
         else:
-            self.selected_roles_id = [role_id for role_id in interaction.values]
+            self.selected_roles_id = [role_id for role_id in ctx.values]
             if "none" in self.selected_roles_id:
                 self.selected_roles_id.remove("none")
-            await interaction.response.defer()
+            await ctx.response.defer()
+
+
+class SelectSettings(disnake.ui.Select):
+    def __init__(self, options):
+
+        super().__init__(
+            placeholder=f"Выберите настройки",
+            min_values=1,
+            max_values=25,
+            options=options
+        )
+
+    async def callback(self, ctx: disnake.MessageInteraction):
+        if not ctx.values:
+            await ctx.response.defer()
+        else:
+            await ctx.response.defer()
 
 
 class SetupBot(commands.Cog):
@@ -126,6 +143,7 @@ class SetupBot(commands.Cog):
 
         return await self.bot.wait_for("message", check=check)
 
+    #region Main settings
     async def ask_emojis(self, ctx):
         await ctx.channel.send("Укажите эмодзи лайка и дизлайка через пробел:")
         answer = await self.wait_for_message(ctx)
@@ -292,6 +310,8 @@ class SetupBot(commands.Cog):
         await self.pool.execute(query, ctx.guild.id, voice_channel.id)
         await ctx.channel.send("В выбранной категории создан голосовой канал\n"
                                "Вы можете изменить его название вручную в любое время")
+
+    #endregion
 
     # region Setup commands
     @commands.slash_command()
