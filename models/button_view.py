@@ -11,7 +11,7 @@ class PageButtons(disnake.ui.View):
     async def on_timeout(self) -> None:
         self.stop()
 
-    @disnake.ui.button(label="Назад", custom_id="previous_page", style=disnake.ButtonStyle.blurple)
+    @disnake.ui.button(label="Назад", style=disnake.ButtonStyle.blurple)
     async def _previous_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
         if self.current_page > 0:
             self.current_page -= 1
