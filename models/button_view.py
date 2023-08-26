@@ -19,7 +19,7 @@ class PageButtons(disnake.ui.View):
         else:
             await ctx.response.defer()
 
-    @disnake.ui.button(label="Вперёд", custom_id="next_page", style=disnake.ButtonStyle.blurple)
+    @disnake.ui.button(label="Вперёд", style=disnake.ButtonStyle.blurple)
     async def _next_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
         if self.current_page < len(self.pages) - 1:
             self.current_page += 1
@@ -27,25 +27,22 @@ class PageButtons(disnake.ui.View):
         else:
             await ctx.response.defer()
 
-    @disnake.ui.button(label="Закрыть", custom_id="close", style=disnake.ButtonStyle.red)
+    @disnake.ui.button(label="Закрыть", style=disnake.ButtonStyle.red)
     async def _close(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
         disabled_buttons = [
             disnake.ui.Button(
                 label="Назад",
                 style=disnake.ButtonStyle.blurple,
-                custom_id="previous_page",
                 disabled=True
             ),
             disnake.ui.Button(
                 label="Вперёд",
                 style=disnake.ButtonStyle.blurple,
-                custom_id="next_page",
                 disabled=True
             ),
             disnake.ui.Button(
                 label="Закрыть",
                 style=disnake.ButtonStyle.red,
-                custom_id="close",
                 disabled=True
             )
         ]
