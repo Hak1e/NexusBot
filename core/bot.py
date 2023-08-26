@@ -20,6 +20,12 @@ class Nexus(commands.InteractionBot):
 
     async def on_ready(self):
         print(f"Бот {self.user} готов к работе!")
+        guilds = await self.bot.fetch_guilds(self).flatten()
+        print(f"Активные серверы ({len(guilds)}):")
+        counter = 1
+        for guild in guilds:
+            print(f"{counter}) {guild.name}")
+            counter += 1
 
     def get_db(self):
         return self._db
