@@ -170,7 +170,7 @@ class Journal(commands.Cog):
         if channel_id:
 
             log = disnake.Embed(title="Заметка удалена", color=disnake.Color.red(),
-                                description=f"{ctx.author.mention} удалил заметку о пользователе {user.mention}:\n"
+                                description=f"{ctx.author.mention} удалил заметку `#{number}` о пользователе {user.mention}:\n"
                                             f"{note}")
             log_channel = ctx.guild.get_channel(channel_id)
             await log_channel.send(embed=log)
