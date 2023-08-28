@@ -311,6 +311,25 @@ class SetupBot(commands.Cog):
         await ctx.channel.send("В выбранной категории создан голосовой канал\n"
                                "Вы можете изменить его название вручную в любое время")
 
+    async def ask_journal_logs(self, ctx):
+        await ctx.channel.send("Укажите ID канала для логов журнала:")
+        message = await self.wait_for_message(ctx)
+        channel = None
+        while type(channel) != int:
+            try:
+                channel = int(message.content)
+            except (ValueError, AttributeError):
+                await ctx.channel.send("Не удалось найти канал. Попробуйте ещё раз:")
+                message = await self.wait_for_message(ctx)
+                channel = None
+
+        query = "INSERT INTO journal_logs (guild_id, channel_id)" \
+                "VALUES ($1, $2)" \
+                "ON CONFLICT (guild_id) DO " \
+                "UPDATE SET channel_id = $2"
+
+        await self.pool.execute(query, ctx.guild.id, channel)
+
     #endregion
 
     # region Setup commands
@@ -319,7 +338,7 @@ class SetupBot(commands.Cog):
         pass
 
     @setup.sub_command()
-    async def reactions(self, ctx: disnake.CommandInteraction): ##############
+    async def reactions(self, ctx: disnake.CommandInteraction):
         """Настроить эмодзи"""
         await ctx.send("Начало настройки эмодзи")
         await self.ask_emojis(ctx)
@@ -351,6 +370,13 @@ class SetupBot(commands.Cog):
         await ctx.channel.send("Настройка завершена")
 
     @setup.sub_command()
+    async def journal_logs(self, ctx: disnake.CommandInteraction):
+        """Указать логи использования журнала"""
+        await ctx.send("Начало настройки")
+        await self.ask_journal_logs(ctx)
+        await ctx.channel.send("Настройка завершена")
+
+    @setup.sub_command()
     async def all(self, ctx: disnake.CommandInteraction):
         """Настроить всё сразу"""
         await ctx.send("Начало настройки всего по порядку")
@@ -363,6 +389,8 @@ class SetupBot(commands.Cog):
         await self.ask_button_cooldown(ctx)
 
         await self.ask_voice_channels_category(ctx)
+
+        await self.ask_journal_logs(ctx)
 
         await ctx.channel.send("Настройка успешно завершена\nКонец настройки")
 
@@ -544,8 +572,15 @@ class SetupBot(commands.Cog):
         result = await self.pool.fetch(query, ctx.guild.id)
         button_cooldown = None
         if result:
-            result = dict(result[0])
-            button_cooldown = result.get("button_cooldown")
+            button_cooldown = result
+
+        query = ("SELECT channel_id "
+                 "FROM journal_logs "
+                 "WHERE guild_id = $1")
+        result = await self.pool.fetchval(query, ctx.guild.id)
+        journal_channel = None
+        if result:
+            journal_channel = ctx.guild.get_channel(result)
 
         embed = (
             disnake.Embed(
@@ -561,6 +596,7 @@ class SetupBot(commands.Cog):
             .add_field("Категория голосовых каналов", voice_category, inline=True)
             .add_field("Генератор голосовых каналов", channel_creator_mention, inline=True)
             .add_field("", "", inline=True)
+            .add_field("Канал для логов журнала", journal_channel.mention, inline=True)
         )
 
         await ctx.send(embed=embed, ephemeral=ephemeral)
