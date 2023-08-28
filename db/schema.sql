@@ -61,10 +61,8 @@ CREATE TABLE IF NOT EXISTS journal (
     PRIMARY KEY (guild_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS penalties (
-    guild_id BIGINT,
-    user_id BIGINT,
-    warns TEXT[],
-    timeout_data json DEFAULT '{}'::json,
-    PRIMARY KEY (guild_id, user_id)
+CREATE TABLE IF NOT EXISTS journal_logs (
+    guild_id BIGINT PRIMARY KEY ,
+    channel_id BIGINT
 );
+
