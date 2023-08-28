@@ -5,6 +5,7 @@ import asyncpg
 import datetime
 from models.button_view import PageButtons
 from typing import Optional
+import datetime
 
 
 class Journal(commands.Cog):
@@ -30,10 +31,11 @@ class Journal(commands.Cog):
 
         query = "SELECT notes " \
                 "FROM journal " \
-                "WHERE user_id = $1 and guild_id = $2"
-        notes = await self.pool.fetchval(query, user.id, ctx.guild.id)
+                "WHERE guild_id = $1 and user_id = $2"
+        notes = await self.pool.fetchval(query, ctx.guild.id, user.id)
         if not notes:
-            empty_embed = disnake.Embed(title=f"Заметки для пользователя {user.name}", description="Заметок нет")
+            empty_embed = disnake.Embed(title=f"Заметки для пользователя {user.name}", description="Заметок нет",
+                                        color=disnake.Color.blurple())
             await ctx.send(embed=empty_embed, ephemeral=ephemeral)
             return
 
@@ -64,34 +66,114 @@ class Journal(commands.Cog):
         user: Пользователь
         note: Заметка о пользователе
         """
+        # TODO: добавить кнопку "Просмотреть журнал пользователя"
+        time = datetime.datetime.now(datetime.timezone.utc)
+        note = f"<t:{int(time.timestamp())}:d>: 💬 **От {ctx.author}:** {note}"
 
-        query = ("INSERT INTO journal (user_id, guild_id, notes) "
+        query = ("INSERT INTO journal (guild_id, user_id, notes) "
                  "VALUES ($1, $2, ARRAY[$3]) "
-                 "ON CONFLICT (user_id, guild_id) DO UPDATE "
+                 "ON CONFLICT (guild_id, user_id) DO UPDATE "
                  "SET notes = array_append(journal.notes, $3)")
-        await self.pool.execute(query, user.id,
-                                ctx.guild.id, note)
-        embed = disnake.Embed(title="", description=f"Заметка для пользователя {user.mention} добавлена:\n`{note}`",
+        await self.pool.execute(query, ctx.guild.id,
+                                user.id, note)
+        embed = disnake.Embed(title="", description=f"Заметка для пользователя {user.mention} добавлена:\n{note}",
                               color=0x74de1d)
+
+        query = ("SELECT channel_id "
+                 "FROM journal_logs "
+                 "WHERE guild_id = $1")
+        channel_id = await self.pool.fetchval(query, ctx.guild.id)
+        if channel_id:
+            log = disnake.Embed(title="Заметка создана", color=disnake.Color.green(),
+                                description=f"{ctx.author.mention} создал заметку о пользователе {user.mention}:\n"
+                                            f"{note}")
+            log_channel = ctx.guild.get_channel(channel_id)
+            await log_channel.send(embed=log)
+
         await ctx.send(embed=embed, ephemeral=True)
 
     @journal.sub_command()
-    async def remove(self, ctx: disnake.CommandInteraction,
-                     user: disnake.User, numbers: str):
-        """Удалить конкретную заметку о пользователе
+    async def edit(self, ctx: disnake.CommandInteraction,
+                   user: disnake.User, number: int, note: str):
+        """Изменить конкретную заметку о пользователе
 
         Parameters
         ----------
         ctx: disnake.CommandInteraction
         user: Пользователь
-        numbers: Номер заметки через пробел
+        number: Номер заметки
+        note: Новая заметка
         """
-        query = ("UPDATE journal "
-                 "SET notes = array_remove(notes, notes[$3]) "
-                 "WHERE user_id = $1 and guild_id = $2")
+        get_note = ("SELECT notes[$3] "
+                    "FROM journal "
+                    "WHERE guild_id = $1 and user_id = $2")
+        old_note = await self.pool.fetchval(get_note, ctx.guild.id,
+                                            user.id, number)
 
-        for number in numbers.split():
-            await self.pool.execute(query, user.id, ctx.guild.id, int(number))
+        query = ("SELECT notes[$3] "
+                 "FROM journal "
+                 "WHERE guild_id = $1 and user_id = $2")
+        db_note = await self.pool.fetchval(query, ctx.guild.id,
+                                           user.id, number)
+
+        note_chunks = db_note.split(" ")
+        new_note = f"{' '.join(note_chunks[0:4])} {note} (*изменено*)"
+
+        query = ("UPDATE journal "
+                 "SET notes[$3] = $4 "
+                 "WHERE guild_id = $1 and user_id = $2")
+        await self.pool.execute(query, ctx.guild.id,
+                                user.id, number, new_note)
+
+        query = ("SELECT channel_id "
+                 "FROM journal_logs "
+                 "WHERE guild_id = $1")
+        channel_id = await self.pool.fetchval(query, ctx.guild.id)
+        if channel_id:
+            log = disnake.Embed(title="Заметка изменена", color=disnake.Color.blurple(),
+                                description=f"{ctx.author.mention} изменил заметку о пользователе {user.mention}:\n"
+                                            f"Старая заметка:\n{old_note}\n"
+                                            f"Новая заметка:\n{new_note}")
+            log_channel = ctx.guild.get_channel(channel_id)
+            await log_channel.send(embed=log)
+
+        await ctx.send("Заметка изменена", ephemeral=True)
+
+    @journal.sub_command()
+    async def remove(self, ctx: disnake.CommandInteraction,
+                     user: disnake.User, number: int):
+        """Удалить заметку/заметки о пользователе
+
+        Parameters
+        ----------
+        ctx: disnake.CommandInteraction
+        user: Пользователь
+        number: Номер заметки
+        """
+        get_note = ("SELECT notes[$3] "
+                    "FROM journal "
+                    "WHERE guild_id = $1 and user_id = $2")
+
+        delete_note = ("UPDATE journal "
+                       "SET notes = array_remove(notes, notes[$3]) "
+                       "WHERE guild_id = $1 and user_id = $2")
+
+        note = await self.pool.fetchval(get_note, ctx.guild.id,
+                                        user.id, number)
+        await self.pool.execute(delete_note, ctx.guild.id,
+                                user.id, number)
+
+        query = ("SELECT channel_id "
+                 "FROM journal_logs "
+                 "WHERE guild_id = $1")
+        channel_id = await self.pool.fetchval(query, ctx.guild.id)
+        if channel_id:
+
+            log = disnake.Embed(title="Заметка удалена", color=disnake.Color.red(),
+                                description=f"{ctx.author.mention} удалил заметку о пользователе {user.mention}:\n"
+                                            f"{note}")
+            log_channel = ctx.guild.get_channel(channel_id)
+            await log_channel.send(embed=log)
 
         await ctx.send("Список обновлён", ephemeral=True)
 
