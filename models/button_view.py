@@ -11,42 +11,41 @@ class PageButtons(disnake.ui.View):
     async def on_timeout(self) -> None:
         self.stop()
 
-    @disnake.ui.button(label="⬅️", style=disnake.ButtonStyle.blurple)
-    async def _previous_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @disnake.ui.button(label="◀◀", style=disnake.ButtonStyle.blurple)
+    async def first_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+        if self.current_page != 0:
+            self.current_page = 0
+            await ctx.response.edit_message(embed=self.pages[self.current_page])
+        else:
+            await ctx.response.defer()
+
+    @disnake.ui.button(label="◀", style=disnake.ButtonStyle.blurple)
+    async def previous_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
         if self.current_page > 0:
             self.current_page -= 1
             await ctx.response.edit_message(embed=self.pages[self.current_page])
         else:
             await ctx.response.defer()
 
-    @disnake.ui.button(label="➡️", style=disnake.ButtonStyle.blurple)
-    async def _next_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @disnake.ui.button(label="▶", style=disnake.ButtonStyle.blurple)
+    async def next_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
         if self.current_page < len(self.pages) - 1:
             self.current_page += 1
             await ctx.response.edit_message(embed=self.pages[self.current_page])
         else:
             await ctx.response.defer()
 
-    @disnake.ui.button(label="❌", style=disnake.ButtonStyle.red)
+    @disnake.ui.button(label="▶▶", style=disnake.ButtonStyle.blurple)
+    async def last_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+        if self.current_page != len(self.pages) - 1:
+            self.current_page = len(self.pages) - 1
+            await ctx.response.edit_message(embed=self.pages[self.current_page])
+        else:
+            await ctx.response.defer()
+
+    @disnake.ui.button(label="✖️", style=disnake.ButtonStyle.red)
     async def _close(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
-        disabled_buttons = [
-            disnake.ui.Button(
-                label="⬅️",
-                style=disnake.ButtonStyle.blurple,
-                disabled=True
-            ),
-            disnake.ui.Button(
-                label="➡️",
-                style=disnake.ButtonStyle.blurple,
-                disabled=True
-            ),
-            disnake.ui.Button(
-                label="❌",
-                style=disnake.ButtonStyle.red,
-                disabled=True
-            )
-        ]
         new_embed = disnake.Embed(title="", description="Список закрыт")
-        await ctx.response.edit_message(embed=new_embed, components=disabled_buttons)
+        await ctx.response.edit_message(embed=new_embed, components=[])
         self.stop()
 
