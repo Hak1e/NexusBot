@@ -45,7 +45,6 @@ class PageButtons(disnake.ui.View):
 
     @disnake.ui.button(label="✖️", style=disnake.ButtonStyle.red)
     async def _close(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
-        new_embed = disnake.Embed(title="", description="Список закрыт")
-        await ctx.response.edit_message(embed=new_embed, components=[])
+        await ctx.channel.last_message.delete()
         self.stop()
 
