@@ -45,6 +45,6 @@ class PageButtons(disnake.ui.View):
 
     @disnake.ui.button(label="✖️", style=disnake.ButtonStyle.red)
     async def _close(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
-        await ctx.channel.last_message.delete()
+        await ctx.message.delete()
         self.stop()
 
