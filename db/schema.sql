@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS cooldown;
 DROP TABLE IF EXISTS custom_voice;
 DROP TABLE IF EXISTS tournament_blacklist;
 DROP TABLE IF EXISTS journal;
-DROP TABLE IF EXISTS penalties;
+-- DROP TABLE IF EXISTS penalties;
 
 
 CREATE TABLE IF NOT EXISTS guild_settings (
@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS text_channels (
     guild_id BIGINT PRIMARY KEY,
     art_channel_id BIGINT,
     meme_channel_id BIGINT,
-    roles_id_to_mention BIGINT[]
+    roles_id_to_mention BIGINT[],
+    goodbye_channel_id BIGINT
 );
 
 CREATE TABLE IF NOT EXISTS emoji_reactions (
@@ -66,3 +67,10 @@ CREATE TABLE IF NOT EXISTS journal_logs (
     channel_id BIGINT
 );
 
+-- CREATE TABLE IF NOT EXISTS penalties (
+--     guild_id BIGINT,
+--     user_id BIGINT,
+--     warns TEXT[],
+--     timeout_data json DEFAULT '{}'::json,
+--     PRIMARY KEY (guild_id, user_id)
+-- );
