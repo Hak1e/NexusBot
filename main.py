@@ -8,7 +8,6 @@ async def load_cogs(bot, root_directory):
     for root, directories, files in os.walk(root_directory):
         for directory in directories:
             if directory == "__pycache__":
-                print(f"Pycache skipped")
                 continue
             try:
                 bot.load_extensions(f"{root_directory}{directory}/")
