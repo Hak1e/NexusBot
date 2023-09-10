@@ -6,6 +6,7 @@ import asyncpg
 
 MAX_VIEWS_IN_MENU = 25
 MAX_BUTTONS_COUNT = 5
+# TODO: сделать нормальную настройку с кнопками и меню выбора. Когда-нибудь я это сделаю 🙂
 
 
 class SelectRoles(disnake.ui.Select):
@@ -330,6 +331,26 @@ class SetupBot(commands.Cog):
 
         await self.pool.execute(query, ctx.guild.id, channel)
 
+    async def ask_hello_goodbye(self, ctx):
+        await ctx.channel.send("Укажите ID канала для логов выхода с сервера:")
+        message = await self.wait_for_message(ctx)
+        channel = None
+        while type(channel) != int:
+            try:
+                channel = int(message.content)
+            except (ValueError, AttributeError):
+                await ctx.channel.send("Не удалось найти канал. Попробуйте ещё раз:")
+                message = await self.wait_for_message(ctx)
+                channel = None
+
+        query = "INSERT INTO text_channels (guild_id, goodbye_channel_id)" \
+                "VALUES ($1, $2)" \
+                "ON CONFLICT (guild_id) DO " \
+                "UPDATE SET goodbye_channel_id = $2"
+
+        await self.pool.execute(query, ctx.guild.id, channel)
+
+
     #endregion
 
     # region Setup commands
@@ -392,6 +413,8 @@ class SetupBot(commands.Cog):
 
         await self.ask_journal_logs(ctx)
 
+        await self.ask_hello_goodbye(ctx)
+
         await ctx.channel.send("Настройка успешно завершена\nКонец настройки")
 
     # endregion
@@ -400,6 +423,22 @@ class SetupBot(commands.Cog):
     @commands.slash_command()
     async def edit(self, ctx):
         pass
+
+    @edit.sub_command()
+    async def user_left_log(self, ctx: disnake.CommandInteraction, channel: disnake.TextChannel):
+        """Указать канал, в котором будет лог вышедших пользователей
+
+        Parameters
+        ----------
+        ctx: command interaction
+        channel: Текстовый канал
+        """
+        query = "INSERT INTO text_channels (guild_id, goodbye_channel_id)" \
+                "VALUES ($1, $2)" \
+                "ON CONFLICT (guild_id) DO " \
+                "UPDATE SET goodbye_channel_id = $2"
+        await self.pool.execute(query, ctx.guild.id, channel.id)
+        await ctx.send("Настройки сохранены")
 
     @edit.sub_command()
     async def emojis(self, ctx: disnake.CommandInteraction, like, dislike):
@@ -411,9 +450,8 @@ class SetupBot(commands.Cog):
         like: Реакция лайка
         dislike: Реакция дизлайка
         """
-        print(f"Like: {like}\nDislike: {dislike}")
         query = "INSERT INTO emoji_reactions (guild_id, _like, _dislike)" \
-                "VALUES ($1, $2, 3)" \
+                "VALUES ($1, $2, $3)" \
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET _like = $2, _dislike = $3"
         await self.pool.execute(query, ctx.guild.id, like, dislike)
