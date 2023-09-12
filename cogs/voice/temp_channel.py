@@ -2,7 +2,7 @@ import disnake
 from disnake.ext import commands
 import asyncpg
 from core.bot import Nexus
-import asyncio
+import json
 
 
 class OnJoinChannel(commands.Cog):
@@ -22,28 +22,49 @@ class OnJoinChannel(commands.Cog):
                                                             member.id)
 
         category = member.guild.get_channel(self.category_id)
-        channel_name = self.custom_channel_name or f"{member.name}'s channel"
+        category_overwrites = category.overwrites
+        initial_category_overwrites = category.overwrites.copy()
+        member_overwrite = disnake.PermissionOverwrite(
+            view_channel=True,
+            connect=True,
+            manage_channels=True,
+            move_members=True
+        )
 
+        get_channel_overwrites = ("SELECT channel_overwrites "
+                                  "FROM custom_voice "
+                                  "WHERE guild_id = $1 and user_id = $2")
+        channel_overwrites = await self.pool.fetchval(get_channel_overwrites, member.guild.id,
+                                                      member.id)
+        if channel_overwrites:
+            channel_overwrites = json.loads(channel_overwrites)
+            for target_id_permissions in channel_overwrites:
+                target_id = target_id_permissions["target"]
+                permissions = target_id_permissions["permissions"]
+                target = member.guild.get_member(target_id) or member.guild.get_role(target_id)
+
+                permission_overwrite = disnake.PermissionOverwrite()
+                for permission, value in permissions.items():
+                    setattr(permission_overwrite, permission, value)
+
+                category_overwrites[target] = permission_overwrite
+
+        else:
+            category_overwrites[member] = member_overwrite
+
+        category_overwrites.update(initial_category_overwrites)
+
+        channel_name = self.custom_channel_name or f"{member.name}'s channel"
         voice_channel = await member.guild.create_voice_channel(name=channel_name, category=category,
-                                                                overwrites=category.overwrites)
+                                                                overwrites=category_overwrites)
         query = "INSERT INTO custom_voice (guild_id, user_id, channel_id)" \
                 "VALUES ($1, $2, $3)" \
                 "ON CONFLICT (guild_id, user_id) DO UPDATE " \
                 "SET channel_id = $3"
         await self.pool.execute(query, member.guild.id,
                                 member.id, voice_channel.id)
-        category_ow = category.overwrites
-        await asyncio.sleep(0.7)  # без этого права пользователю могут не добавиться
+        # await asyncio.sleep(0.7)  # без этого права пользователю могут не добавиться
         # Значение 0.7 - минимальное для корректной работы
-
-        if member in category_ow:
-            category_ow[member].update(view_channel=True, manage_channels=True,
-                                       manage_permissions=True, move_members=True)
-            await voice_channel.edit(overwrites=category_ow)
-        else:
-            await voice_channel.set_permissions(member, view_channel=True,
-                                                manage_channels=True, manage_permissions=True,
-                                                move_members=True)
 
         try:
             await member.move_to(voice_channel)
@@ -53,21 +74,31 @@ class OnJoinChannel(commands.Cog):
         return
 
     async def delete_voice_channel(self, member: disnake.Member, channel: disnake.VoiceChannel):
-        query = "SELECT user_id " \
+        get_channel_author_id = "SELECT user_id " \
                 "FROM custom_voice " \
                 "WHERE guild_id = $1 and channel_id = $2"
-        self.channel_author_id = await self.pool.fetchval(query, member.guild.id,
-                                                          channel.id)
+        channel_author_id = await self.pool.fetchval(get_channel_author_id, member.guild.id,
+                                                     channel.id)
 
-        query = "INSERT INTO custom_voice (guild_id, user_id, channel_id, channel_name)" \
-                "VALUES ($1, $2, $3, $4)" \
-                "ON CONFLICT (guild_id, user_id) DO UPDATE " \
-                "SET channel_id = $3, channel_name = $4"
-        await self.pool.execute(query, member.guild.id,
-                                self.channel_author_id, None,
-                                channel.name)
+        channel_overwrites = channel.overwrites
+        data = []
+        for target, permissions in channel_overwrites.items():
+            data.append(
+                {
+                    "target": target.id,
+                    "permissions": dict(permissions)
+                }
+            )
+        json_data = json.dumps(data)
+        update_channel_settings = ("INSERT INTO custom_voice ("
+                                   "guild_id, user_id, channel_id, channel_name, channel_overwrites)"
+                                   "VALUES ($1, $2, $3, $4, $5)"
+                                   "ON CONFLICT (guild_id, user_id) DO UPDATE "
+                                   "SET channel_id = $3, channel_name = $4, channel_overwrites = $5")
+        await self.pool.execute(update_channel_settings, member.guild.id,
+                                channel_author_id, None,
+                                channel.name, json_data)
 
-        self.channel_author_id = None
         await channel.delete()
         return
 
@@ -93,24 +124,6 @@ class OnJoinChannel(commands.Cog):
 
         if current.channel and current.channel.id == self.channel_creator_id:
             await self.create_voice_channel(member)
-
-
-
-        # data = []
-        # for target, permissions in overwrites.items():
-        #     data.append(
-        #         {
-        #             "target": target.id,
-        #             "permissions": dict(permissions)
-        #         }
-        #     )
-        #
-        #
-        #
-        # query = "UPDATE custom_voice " \
-        #         "SET custom_channel_name = $2, permissions = $3 " \
-        #         "WHERE channel_creator_id = $1"
-        # await self.pool.execute(query, member_or_id.id, self.custom_channel_name, self.permissions)
 
 
 def setup(bot):

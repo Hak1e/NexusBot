@@ -40,8 +40,11 @@ CREATE TABLE IF NOT EXISTS custom_voice (
     user_id BIGINT,
     channel_id BIGINT,
     channel_name TEXT,
+    channel_overwrites JSON,
     PRIMARY KEY (guild_id, user_id)
 );
+
+ALTER TABLE custom_voice ADD channel_overwrites JSON;
 
 CREATE TABLE IF NOT EXISTS tournament_blacklist (
     guild_id BIGINT,
