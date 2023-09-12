@@ -9,17 +9,23 @@ class OnJoinChannel(commands.Cog):
     def __init__(self, bot: Nexus):
         self.bot = bot
         self.pool: asyncpg.Pool = bot.get_pool()
-        self.category_id = None
-        self.channel_creator_id = None
 
-    async def create_voice_channel(self, member: disnake.Member):
+    async def create_voice_channel(self, member: disnake.Member, category_id):
         query = "SELECT channel_name, bitrate, user_limit " \
                 "FROM custom_voice " \
                 "WHERE guild_id = $1 and user_id = $2"
-        custom_channel_name, bitrate, user_limit = await self.pool.fetchrow(query, member.guild.id,
-                                                                            member.id)
+        result = await self.pool.fetchrow(query, member.guild.id,
+                                          member.id)
+        custom_channel_name = None
+        bitrate = 64000
+        user_limit = 0
+        if result:
+            result = dict(result)
+            custom_channel_name = result.get("channel_name", None)
+            bitrate = result.get("bitrate", 64000)
+            user_limit = result.get("user_limit", 0)
 
-        category = member.guild.get_channel(self.category_id)
+        category = member.guild.get_channel(category_id)
         category_overwrites = category.overwrites
         initial_category_overwrites = category.overwrites.copy()
         member_overwrite = disnake.PermissionOverwrite(
@@ -72,8 +78,8 @@ class OnJoinChannel(commands.Cog):
 
     async def delete_voice_channel(self, member: disnake.Member, channel: disnake.VoiceChannel):
         get_channel_author_id = "SELECT user_id " \
-                "FROM custom_voice " \
-                "WHERE guild_id = $1 and channel_id = $2"
+                                "FROM custom_voice " \
+                                "WHERE guild_id = $1 and channel_id = $2"
         channel_author_id = await self.pool.fetchval(get_channel_author_id, member.guild.id,
                                                      channel.id)
 
@@ -120,17 +126,17 @@ class OnJoinChannel(commands.Cog):
                 "FROM guild_settings " \
                 "WHERE guild_id = $1"
         try:
-            self.category_id, self.channel_creator_id = await self.pool.fetchrow(query, guild_id)
+            category_id, channel_creator_id = await self.pool.fetchrow(query, guild_id)
         except TypeError:
             return
 
-        if before.channel and before.channel.category.id == self.category_id\
-                and before.channel.id != self.channel_creator_id\
+        if before.channel and before.channel.category.id == category_id\
+                and before.channel.id != channel_creator_id\
                 and not before.channel.members:
             await self.delete_voice_channel(member, before.channel)
 
-        if current.channel and current.channel.id == self.channel_creator_id:
-            await self.create_voice_channel(member)
+        if current.channel and current.channel.id == channel_creator_id:
+            await self.create_voice_channel(member, category_id)
 
 
 def setup(bot):
