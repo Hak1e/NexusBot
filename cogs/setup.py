@@ -540,22 +540,22 @@ class SetupBot(commands.Cog):
         await ctx.send("Настройки сохранены")
 
     @edit.sub_command()
-    async def voice_channels_category(self, ctx: disnake.CommandInteraction, category_id: int = None,
-                                      voice_channel_id: int = None):
+    async def voice_channels_category(self, ctx: disnake.CommandInteraction, category_id=None,
+                                      voice_channel_id=None):
         """Изменить ID категории или голосового канала"""
         if category_id:
             query = "INSERT INTO guild_settings (guild_id, voice_channel_category_id)" \
                     "VALUES ($1, $2)" \
                     "ON CONFLICT (guild_id) DO " \
                     "UPDATE SET voice_channel_category_id = $2"
-            await self.pool.execute(query, ctx.guild.id, category_id)
+            await self.pool.execute(query, ctx.guild.id, int(category_id))
 
         if voice_channel_id:
             query = "INSERT INTO guild_settings (guild_id, channel_creator_id)" \
                     "VALUES ($1, $2)" \
                     "ON CONFLICT (guild_id) DO " \
                     "UPDATE SET channel_creator_id = $2"
-            await self.pool.execute(query, ctx.guild.id, voice_channel_id)
+            await self.pool.execute(query, ctx.guild.id, int(voice_channel_id))
 
         await ctx.send("Настройки сохранены")
 
