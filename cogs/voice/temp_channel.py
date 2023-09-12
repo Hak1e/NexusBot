@@ -11,15 +11,13 @@ class OnJoinChannel(commands.Cog):
         self.pool: asyncpg.Pool = bot.get_pool()
         self.category_id = None
         self.channel_creator_id = None
-        self.channel_author_id = None
-        self.custom_channel_name = None
 
     async def create_voice_channel(self, member: disnake.Member):
-        query = "SELECT channel_name " \
+        query = "SELECT channel_name, bitrate, user_limit " \
                 "FROM custom_voice " \
                 "WHERE guild_id = $1 and user_id = $2"
-        self.custom_channel_name = await self.pool.fetchval(query, member.guild.id,
-                                                            member.id)
+        custom_channel_name, bitrate, user_limit = await self.pool.fetchrow(query, member.guild.id,
+                                                                            member.id)
 
         category = member.guild.get_channel(self.category_id)
         category_overwrites = category.overwrites
@@ -54,17 +52,16 @@ class OnJoinChannel(commands.Cog):
 
         category_overwrites.update(initial_category_overwrites)
 
-        channel_name = self.custom_channel_name or f"{member.name}'s channel"
+        channel_name = custom_channel_name or f"{member.name}'s channel"
         voice_channel = await member.guild.create_voice_channel(name=channel_name, category=category,
-                                                                overwrites=category_overwrites)
+                                                                overwrites=category_overwrites, bitrate=bitrate,
+                                                                user_limit=user_limit)
         query = "INSERT INTO custom_voice (guild_id, user_id, channel_id)" \
                 "VALUES ($1, $2, $3)" \
                 "ON CONFLICT (guild_id, user_id) DO UPDATE " \
                 "SET channel_id = $3"
         await self.pool.execute(query, member.guild.id,
                                 member.id, voice_channel.id)
-        # await asyncio.sleep(0.7)  # без этого права пользователю могут не добавиться
-        # Значение 0.7 - минимальное для корректной работы
 
         try:
             await member.move_to(voice_channel)
@@ -91,16 +88,26 @@ class OnJoinChannel(commands.Cog):
             )
         json_data = json.dumps(data)
         update_channel_settings = ("INSERT INTO custom_voice ("
-                                   "guild_id, user_id, channel_id, channel_name, channel_overwrites)"
-                                   "VALUES ($1, $2, $3, $4, $5)"
+                                   "guild_id, user_id, "
+                                   "channel_id, channel_name, "
+                                   "channel_overwrites, bitrate, "
+                                   "user_limit) "
+                                   "VALUES ($1, $2, $3, $4, $5, $6, $7)"
                                    "ON CONFLICT (guild_id, user_id) DO UPDATE "
-                                   "SET channel_id = $3, channel_name = $4, channel_overwrites = $5")
+                                   "SET channel_id = $3, channel_name = $4, "
+                                   "channel_overwrites = $5, bitrate = $6, "
+                                   "user_limit = $7")
         await self.pool.execute(update_channel_settings, member.guild.id,
                                 channel_author_id, None,
-                                channel.name, json_data)
+                                channel.name, json_data,
+                                channel.bitrate, channel.user_limit)
 
         await channel.delete()
         return
+
+    async def edit_channel_settings(self):
+        pass
+        # TODO: дать пользователю возможность выбрать участника/роль, затем действие. Запретить изменять участников/роли, которые есть в категории
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: disnake.Member, before: disnake.VoiceState,
