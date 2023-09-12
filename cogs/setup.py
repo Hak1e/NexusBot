@@ -568,50 +568,57 @@ class SetupBot(commands.Cog):
         query = ("SELECT * "
                  "FROM text_channels "
                  "WHERE guild_id = $1")
-        result = await self.pool.fetch(query, ctx.guild.id)
+        result = await self.pool.fetchrow(query, ctx.guild.id)
         art_channel_mention, meme_channel_mention, mention_roles = None, None, []
         if result:
-            result = dict(result[0])
+            result = dict(result)
             art_channel_id = result.get("art_channel_id")
-            meme_channel_id = result.get("meme_channel_id")
-            mention_roles_ids = result.get("roles_id_to_mention")
+            if art_channel_id:
+                art_channel_mention = ctx.guild.get_channel(int(art_channel_id)).mention
 
-            art_channel_mention = ctx.guild.get_channel(art_channel_id).mention
-            meme_channel_mention = ctx.guild.get_channel(meme_channel_id).mention
-            mention_roles = [f"{ctx.guild.get_role(role_id).mention}" for role_id in mention_roles_ids]
+            meme_channel_id = result.get("meme_channel_id")
+            if meme_channel_id:
+                meme_channel_mention = ctx.guild.get_channel(int(meme_channel_id)).mention
+
+            mention_roles_ids = result.get("roles_id_to_mention")
+            if mention_roles_ids:
+                mention_roles = [f"{ctx.guild.get_role(int(role_id)).mention}" for role_id in mention_roles_ids]
 
         query = ("SELECT * "
                  "FROM emoji_reactions "
                  "WHERE guild_id = $1")
-        result = await self.pool.fetch(query, ctx.guild.id)
+        result = await self.pool.fetchrow(query, ctx.guild.id)
         like, dislike = None, None
         if result:
-            result = dict(result[0])
+            result = dict(result)
             like = result.get("_like")
             dislike = result.get("_dislike")
 
         query = ("SELECT * "
                  "FROM guild_settings "
                  "WHERE guild_id = $1")
-        result = await self.pool.fetch(query, ctx.guild.id)
+        result = await self.pool.fetchrow(query, ctx.guild.id)
         tickets_category, voice_category, channel_creator_mention = None, None, None
         if result:
-            result = dict(result[0])
+            result = dict(result)
             tickets_category_id = result.get("tickets_category_id")
-            voice_category_id = result.get("voice_channel_category_id")
-            channel_creator_id = result.get("channel_creator_id")
+            if tickets_category_id:
+                tickets_category = ctx.guild.get_channel(int(tickets_category_id))
 
-            tickets_category = ctx.guild.get_channel(tickets_category_id)
-            voice_category = ctx.guild.get_channel(voice_category_id)
-            channel_creator_mention = ctx.guild.get_channel(channel_creator_id).mention
+            voice_category_id = result.get("voice_channel_category_id")
+            if voice_category_id:
+                voice_category = ctx.guild.get_channel(int(voice_category_id))
+
+            channel_creator_id = result.get("channel_creator_id")
+            if channel_creator_id:
+                channel_creator_mention = ctx.guild.get_channel(int(channel_creator_id)).mention
 
         query = ("SELECT button_cooldown "
                  "FROM cooldown "
                  "WHERE guild_id = $1")
         result = await self.pool.fetch(query, ctx.guild.id)
-        button_cooldown = None
-        if result:
-            button_cooldown = result
+        button_cooldown = result or None
+
 
         query = ("SELECT channel_id "
                  "FROM journal_logs "
