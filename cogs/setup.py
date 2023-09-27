@@ -619,14 +619,13 @@ class SetupBot(commands.Cog):
         result = await self.pool.fetch(query, ctx.guild.id)
         button_cooldown = result or None
 
-
         query = ("SELECT channel_id "
                  "FROM journal_logs "
                  "WHERE guild_id = $1")
         result = await self.pool.fetchval(query, ctx.guild.id)
-        journal_channel = None
+        journal_channel_mention = None
         if result:
-            journal_channel = ctx.guild.get_channel(result)
+            journal_channel_mention = ctx.guild.get_channel(result).mention
 
         embed = (
             disnake.Embed(
@@ -642,7 +641,7 @@ class SetupBot(commands.Cog):
             .add_field("Категория голосовых каналов", voice_category, inline=True)
             .add_field("Генератор голосовых каналов", channel_creator_mention, inline=True)
             .add_field("", "", inline=True)
-            .add_field("Канал для логов журнала", journal_channel.mention, inline=True)
+            .add_field("Канал для логов журнала", journal_channel_mention, inline=True)
         )
 
         await ctx.send(embed=embed, ephemeral=ephemeral)
