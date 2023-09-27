@@ -1,8 +1,8 @@
 import disnake
 from disnake.ext import commands
 from typing import Optional
-import asyncpg
 from core.bot import Nexus
+from models.errors import DataBaseFetchError
 
 
 async def send_embed(ctx: disnake.CommandInteraction, bot: commands.InteractionBot,
@@ -35,16 +35,19 @@ class Creativity(commands.Cog):
     def __init__(self, bot: Nexus):
         self.bot = bot
         self.pool = bot.get_pool()
-        self.art_channel_id = None
-        self.meme_channel_id = None
 
     async def load_emoji_reactions(self, ctx):
         query = "SELECT _like, _dislike " \
                 "FROM emoji_reactions " \
                 "WHERE guild_id = $1"
         result = await self.pool.fetch(query, ctx.guild.id)
-        like, dislike = result[0]["_like"], result[0]["_dislike"]
-        return like, dislike
+        if result[0][0] and result[0][1]:
+            like, dislike = result[0]["_like"], result[0]["_dislike"]
+            return like, dislike
+        else:
+            error_message = "Ошибка загрузки реакций. Необходима настройка"
+            await ctx.send(error_message, ephemeral=True)
+            raise DataBaseFetchError(error_message)
 
     @commands.slash_command()
     async def art(self, ctx: disnake.CommandInteraction,
@@ -63,8 +66,10 @@ class Creativity(commands.Cog):
         query = "SELECT art_channel_id " \
                 "FROM text_channels " \
                 "WHERE guild_id = $1"
-        self.art_channel_id = await self.pool.fetchval(query, ctx.guild.id)
-
+        art_channel_id = await self.pool.fetchval(query, ctx.guild.id)
+        if not art_channel_id:
+            await ctx.send("Не найден канал для артов", ephemeral=True)
+            raise DataBaseFetchError()
         like, dislike = await self.load_emoji_reactions(ctx)
         if author:
             description = f"**Автор:** {author}"
@@ -74,7 +79,7 @@ class Creativity(commands.Cog):
             description += f"\n**Комментарий: **{comment}"
         await send_embed(ctx=ctx, bot=self.bot,
                          title="Новый арт!", image_url=image_url,
-                         description=description, channel_id=self.art_channel_id,
+                         description=description, channel_id=art_channel_id,
                          reply_message="Арт успешно опубликован", like=like,
                          dislike=dislike)
 
@@ -93,7 +98,10 @@ class Creativity(commands.Cog):
         """
 
         query = "SELECT meme_channel_id FROM text_channels WHERE guild_id = $1"
-        self.meme_channel_id = await self.pool.fetchval(query, ctx.guild.id)
+        meme_channel_id = await self.pool.fetchval(query, ctx.guild.id)
+        if not meme_channel_id:
+            await ctx.send("Не найден канал для мемов", ephemeral=True)
+            raise DataBaseFetchError()
 
         like, dislike = await self.load_emoji_reactions(ctx)
         if author:
@@ -104,7 +112,7 @@ class Creativity(commands.Cog):
             description += f"\n**Комментарий: **{comment}"
         await send_embed(ctx=ctx, bot=self.bot,
                          image_url=image_url,
-                         description=description, channel_id=self.meme_channel_id,
+                         description=description, channel_id=meme_channel_id,
                          reply_message="Мем успешно опубликован", like=like,
                          dislike=dislike)
 
