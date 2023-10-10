@@ -42,7 +42,7 @@ class SendMessages(commands.Cog):
         ----------
         ctx: command interaction
         channel_id: Указать ID канала для отправки сообщения
-        guild_id: Указать ID сервера. Указывать, если канал на другом сервере
+        guild_id: Указать ID сервера, если канал на другом сервере
         """
         accepted_person_ids = [389787190986670082, 434780487127400459]
         if ctx.author.id not in accepted_person_ids:
