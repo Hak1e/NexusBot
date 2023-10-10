@@ -71,7 +71,6 @@ class SendMessages(commands.Cog):
             return
 
         while True:
-            message = None
             try:
                 message = await self.wait_for_message(ctx, timeout=600)
                 if message.content == "<<stop":
