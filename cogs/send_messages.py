@@ -1,3 +1,6 @@
+import asyncio
+import time
+
 import disnake
 from disnake.ext import commands
 from typing import Optional
@@ -24,11 +27,11 @@ class SendMessages(commands.Cog):
         await channel.send(message)
         await ctx.send("Сообщение отправлено", ephemeral=True)
 
-    async def wait_for_message(self, ctx):
+    async def wait_for_message(self, ctx, timeout=120):
         def check(msg):
             return msg.author.id == ctx.author.id and msg.channel == ctx.channel
 
-        return await self.bot.wait_for("message", check=check)
+        return await self.bot.wait_for("message", check=check, timeout=timeout)
 
     @commands.slash_command()
     async def echo(self, ctx: disnake.CommandInteraction,
@@ -61,21 +64,32 @@ class SendMessages(commands.Cog):
             await ctx.send("Не найден канал на этом сервере", ephemeral=True)
             return
 
-        await ctx.send("Начните вводить сообщения, которые будут отправлены в указанный канал\n"
-                       "Чтобы остановить команду, введите `<<stop`", ephemeral=True)
-        while True:
-            message = await self.wait_for_message(ctx)
-            if message.content == "<<stop":
-                await message.delete()
-                await ctx.send("Отправка сообщений остановлена", ephemeral=True)
-                break
+        try:
+            await ctx.send(f"Отправьте сообщение, чтобы я написал его в `{channel.name}` сервера `{guild.name}`\n"
+                           "Чтобы остановить команду, отправьте `<<stop`", ephemeral=True)
+        except disnake.HTTPException:
+            await ctx.send(f"Нет прав на просмотр/отправку сообщений в этом канале", ephemeral=True)
+            return
 
-            if message.attachments:
-                attachments = [await attachment.to_file() for attachment in message.attachments]
-                await channel.send(message.content, files=attachments)
-            else:
-                await channel.send(message.content)
-            await message.delete()
+        while True:
+            try:
+                message: disnake.Message = await self.wait_for_message(ctx)
+                if message.content == "<<stop":
+                    await message.add_reaction("✅")
+                    time.sleep(2)
+                    await message.delete()
+                    break
+
+                if message.attachments:
+                    attachments = [await attachment.to_file() for attachment in message.attachments]
+                    await channel.send(message.content, files=attachments)
+                else:
+                    await channel.send(message.content)
+                await message.delete()
+            except asyncio.TimeoutError:
+                await ctx.send(
+                    "Время команды истекло. Для продолжения используйте команду заново", ephemeral=True)
+                return
 
 
 def setup(bot):
