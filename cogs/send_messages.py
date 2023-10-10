@@ -64,15 +64,16 @@ class SendMessages(commands.Cog):
             return
 
         try:
-            await ctx.send(f"Отправьте сообщение, чтобы я написал его в `{channel.name}` сервера `{guild.name}`\n"
-                           "Чтобы остановить команду, отправьте `<<stop`", ephemeral=True)
+            await ctx.send(f"Отправьте сообщение, которое будет отправлено в `{channel.name}` сервера `{guild.name}`\n"
+                           "Чтобы остановить команду, отправьте `<<stop`")
         except disnake.HTTPException:
             await ctx.send(f"Нет прав на просмотр/отправку сообщений в этом канале", ephemeral=True)
             return
 
         while True:
+            message = None
             try:
-                message: disnake.Message = await self.wait_for_message(ctx)
+                message = await self.wait_for_message(ctx, timeout=600)
                 if message.content == "<<stop":
                     await message.add_reaction("✅")
                     time.sleep(2)
@@ -86,8 +87,7 @@ class SendMessages(commands.Cog):
                     await channel.send(message.content)
                 await message.delete()
             except asyncio.TimeoutError:
-                await ctx.send(
-                    "Время команды истекло. Для продолжения используйте команду заново", ephemeral=True)
+                await ctx.channel.send("Время команды истекло. Для продолжения используйте команду заново")
                 return
 
 
