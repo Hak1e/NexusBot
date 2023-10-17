@@ -138,6 +138,7 @@ class Tickets(commands.Cog):
             await ctx.send(
                 "Настройки для сервера не найдены. Обратитесь к администратору для настройки", ephemeral=True
             )
+            return
 
         cooldown_active = False
         response = ""
