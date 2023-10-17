@@ -1,3 +1,5 @@
+import typing
+
 import disnake
 from disnake.ext import commands
 from core.bot import Nexus
@@ -507,15 +509,16 @@ class SetupBot(commands.Cog):
         await ctx.send("Настройки сохранены")
 
     @edit.sub_command()
-    async def roles_mention(self, ctx: disnake.CommandInteraction, roles):
+    async def roles_mention(self, ctx: disnake.CommandInteraction, roles_ids):
         """Изменить ID ролей для упоминания при создании тикетов
 
         Parameters
         ----------
         ctx: command interaction
-        roles: Роли для упоминания
+        roles_ids: ID ролей для упоминания
         """
-        roles_id = [int(role.id) for role in roles]
+        roles_id = [int(role) for role in roles_ids.split()]
+
         query = "INSERT INTO text_channels (guild_id, roles_id_to_mention)" \
                 "VALUES ($1, $2)" \
                 "ON CONFLICT (guild_id) DO " \
