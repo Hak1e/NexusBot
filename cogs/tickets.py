@@ -174,6 +174,7 @@ class Tickets(commands.Cog):
                 await self.activate_cooldown(ctx)
             except:
                 await ctx.send("Не могу создать канал. Нет доступа к категории тикетов", ephemeral=True)
+                return
 
     @commands.slash_command()
     async def create(self, ctx):
