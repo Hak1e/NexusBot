@@ -277,6 +277,7 @@ class TicketsCommands(commands.Cog):
 
     @commands.slash_command()
     async def user(self, ctx):
+        """Добавить или удалить участника в тикет"""
         pass
 
     @user.sub_command()
@@ -293,6 +294,7 @@ class TicketsCommands(commands.Cog):
     @user.sub_command()
     async def remove(self, ctx: disnake.CommandInteraction,
                      member: disnake.Member):
+        """Убрать участника из этого канала"""
         if not await self.is_ticket(ctx):
             await ctx.send("Вы можете использовать эту команду только в билетах", ephemeral=True)
             return

@@ -4,7 +4,6 @@ from core.bot import Nexus
 import asyncpg
 import re
 
-
 MAX_VIEWS_IN_MENU = 25
 MAX_BUTTONS_COUNT = 5
 
@@ -332,12 +331,13 @@ class SetupBot(commands.Cog):
         roles_not_found_message = "Нет"
         embed = (
             disnake.Embed(title="Роли с доступом к тикетам")
-            .add_field(name="Вопрос", value=f"{"\n".join(question_roles) if question_roles else roles_not_found_message}")
+            .add_field(name="Вопрос",
+                       value=f"{"\n".join(question_roles) if question_roles else roles_not_found_message}")
             .add_field(name="Жалоба", value=f"{"\n".join(report_roles) if report_roles else roles_not_found_message}")
-            .add_field(name="Предложение", value=f"{"\n".join(offer_roles) if offer_roles else roles_not_found_message}")
+            .add_field(name="Предложение",
+                       value=f"{"\n".join(offer_roles) if offer_roles else roles_not_found_message}")
         )
         await ctx.send(embed=embed, ephemeral=ephemeral)
-
 
     @tickets.sub_command()
     async def buttons_emoji(self, ctx: disnake.CmdInter,
