@@ -1,200 +1,244 @@
-import asyncpg
 import disnake
 from disnake.ext import commands
-from core.bot import Nexus
-from datetime import datetime, timedelta
+from disnake.ui import Modal, View, button
+import asyncpg
+import datetime
+from datetime import timedelta
+import enum
 
 
-class ButtonView(disnake.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @disnake.ui.button(label="Вопрос", style=disnake.ButtonStyle.grey,
-                       custom_id="question_button", emoji="❔")
-    async def question_button(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
-        pass
-
-    @disnake.ui.button(label="Жалоба", style=disnake.ButtonStyle.red,
-                       custom_id="report_button", emoji="❕")
-    async def report_button(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
-        pass
-
-    @disnake.ui.button(label="Предложение", style=disnake.ButtonStyle.blurple,
-                       custom_id="offer_button", emoji="📝")
-    async def offer_button(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
-        pass
+async def send_ticket_log(pool, ctx,
+                          title, description,
+                          color):
+    query = ("SELECT logs_channel_id "
+             "FROM tickets "
+             "WHERE guild_id = $1")
+    logs_channel_id = await pool.fetchval(query, ctx.guild.id)
+    if logs_channel_id:
+        logs_channel = ctx.guild.get_channel(logs_channel_id)
+        embed = (
+            disnake.Embed(title=title, color=color,
+                          description=description)
+            .set_footer(text="", icon_url=ctx.author.avatar.url)
+        )
+        embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
+        await logs_channel.send(embed=embed)
 
 
-class Tickets(commands.Cog):
-    def __init__(self, bot: Nexus):
-        self.bot = bot
-        self.pool: asyncpg.Pool = self.bot.get_pool()
-        self.category_id = None
-        self.roles_id_to_mention = []
-        self.guild_button_cooldown = None
-        self.guild_button_cooldown_end_time = None
-        self.guild_category_ids = None
-        self.guild_mention_roles_ids = None
+async def get_ticket_number(pool, ctx):
+    query = ("SELECT total_created_tickets_number "
+             "FROM tickets "
+             "WHERE guild_id = $1")
+    return await pool.fetchval(query, ctx.guild.id)
 
-    async def create_ticket_channel(self, ctx: disnake.MessageInteraction, roles: list,
-                                    ping_roles: str, channel_name: str):
+
+class ButtonsIDs(str, enum.Enum):
+    QUESTION = "question_button"
+    REPORT = "report_button"
+    OFFER = "offer_button"
+    CLOSE = "close_button"
+    DELETE = "delete_button"
+
+
+class ModalWindow(Modal):
+    def __init__(self, ctx,
+                 name, name_placeholder,
+                 description, description_placeholder,
+                 button_category, title,
+                 pool, ticket_purpose):
+        self.button_category = button_category
+        self.pool = pool
+        self.name_custom_id = f"name-{ctx.id}"
+        self.description_custom_id = f"desc-{ctx.id}"
+        self.ticket_purpose = ticket_purpose
+        components = [
+            disnake.ui.TextInput(label=name, placeholder=name_placeholder,
+                                 style=disnake.TextInputStyle.short, custom_id=f"name-{ctx.id}"),
+            disnake.ui.TextInput(label=description, placeholder=description_placeholder,
+                                 style=disnake.TextInputStyle.long, custom_id=f"desc-{ctx.id}")
+        ]
+        super().__init__(title=title, timeout=200,
+                         custom_id=f"ticket_window_{ctx.id}", components=components)
+
+    async def callback(self, ctx: disnake.ModalInteraction):
+        await ctx.response.defer(ephemeral=True)
+
+        async def send_initial_message(_channel, roles,
+                                       ticket_purpose):
+            embed = (
+                disnake.Embed(title=ticket_purpose, color=disnake.Color.blue())
+                .add_field(
+                    name="Тема",
+                    value=ctx.text_values[self.name_custom_id][:1024],
+                    inline=False
+                )
+                .add_field(
+                    name="Описание",
+                    value=ctx.text_values[self.description_custom_id][:1024],
+                    inline=False
+                )
+            )
+            query = ("SELECT close_button_emoji "
+                     "FROM ticket_buttons_emojis "
+                     "WHERE guild_id = $1")
+            emoji = await self.pool.fetchval(query, ctx.guild.id)
+            await _channel.send(
+                embed=embed,
+                components=[
+                    disnake.ui.Button(label="Закрыть билет", style=disnake.ButtonStyle.red,
+                                      custom_id="close_button", emoji=emoji or "✖",
+                                      )
+                ]
+            )
+            allowed_mentions = disnake.AllowedMentions(users=True, roles=True)
+            roles_mention = ", ".join([role.mention for role in roles])
+            await _channel.send(f"{roles_mention}, {ticket_purpose} от {ctx.author.mention}",
+                                allowed_mentions=allowed_mentions)
+
+            await ctx.edit_original_response(f"Билет создан: {channel.mention}")
+
+        query = "SELECT tickets_category_id " \
+                "FROM tickets " \
+                "WHERE guild_id = $1"
+        tickets_category_id = await self.pool.fetchval(query, ctx.guild.id)
+        no_settings_found_message = "Не найдены роли для упоминания. Обратитесь к администратору"
+
+        if self.button_category == ButtonsIDs.QUESTION:
+            query = ("SELECT question_roles_ids "
+                     "FROM tickets "
+                     "WHERE guild_id = $1")
+            result = await self.pool.fetchval(query, ctx.guild.id)
+
+            if not result:
+                await ctx.send(no_settings_found_message, ephemeral=True)
+                return
+            roles_id = list(result)
+            roles_to_add = [ctx.guild.get_role(role_id) for role_id in roles_id]
+            channel = await self.create_ticket_channel(ctx=ctx, tickets_category_id=tickets_category_id,
+                                                       roles=roles_to_add, channel_name="вопрос")
+            await send_initial_message(_channel=channel, roles=roles_to_add,
+                                       ticket_purpose="вопрос")
+
+        elif self.button_category == ButtonsIDs.REPORT:
+            query = ("SELECT report_roles_ids "
+                     "FROM tickets "
+                     "WHERE guild_id = $1")
+            roles_id = list(await self.pool.fetchval(query, ctx.guild.id))
+
+            if not roles_id:
+                await ctx.send(no_settings_found_message, ephemeral=True)
+                return
+            roles_to_add = [ctx.guild.get_role(role_id) for role_id in roles_id]
+            channel = await self.create_ticket_channel(ctx=ctx, tickets_category_id=tickets_category_id,
+                                                       roles=roles_to_add, channel_name=self.ticket_purpose)
+            await send_initial_message(_channel=channel, roles=roles_to_add,
+                                       ticket_purpose=self.ticket_purpose)
+
+        elif self.button_category == ButtonsIDs.OFFER:
+            query = ("SELECT offer_roles_ids "
+                     "FROM tickets "
+                     "WHERE guild_id = $1")
+            roles_id = list(await self.pool.fetchval(query, ctx.guild.id))
+
+            if not roles_id:
+                await ctx.send(no_settings_found_message, ephemeral=True)
+                return
+            roles_to_add = [ctx.guild.get_role(role_id) for role_id in roles_id]
+            channel = await self.create_ticket_channel(ctx=ctx, tickets_category_id=tickets_category_id,
+                                                       roles=roles_to_add, channel_name=self.ticket_purpose)
+            await send_initial_message(_channel=channel, roles=roles_to_add,
+                                       ticket_purpose=self.ticket_purpose)
+
+        ticket_number = await get_ticket_number(self.pool, ctx)
+
+        await send_ticket_log(pool=self.pool, ctx=ctx,
+                              title=f"Билет #{ticket_number} создан",
+                              description=f"Создан участником {ctx.author.mention}(`{ctx.author.id}`)\n"
+                                          f"**Категория**\n"
+                                          f"{self.ticket_purpose}\n"
+                                          f"**Тема**\n"
+                                          f"{ctx.text_values[self.name_custom_id][:1024]}\n"
+                                          f"**Описание**\n"
+                                          f"{ctx.text_values[self.description_custom_id][:1024]}\n",
+                              color=disnake.Color.green())
+
+    async def create_ticket_channel(self, ctx,
+                                    tickets_category_id, roles: list,
+                                    channel_name):
         guild = ctx.guild
-        user = ctx.author
-        category = ctx.guild.get_channel(self.guild_category_ids)
-        user_overwrite = disnake.PermissionOverwrite(send_messages=True, view_channel=True)
+        bot = ctx.message.author
+        member = ctx.author
+        category = ctx.guild.get_channel(tickets_category_id)
+        ticket_overwrite = disnake.PermissionOverwrite(send_messages=True, view_channel=True)
 
         overwrites = {
             guild.default_role: disnake.PermissionOverwrite(read_messages=False),
-            ctx.message.author: user_overwrite,
-            user: user_overwrite,
+            bot: ticket_overwrite,
+            member: ticket_overwrite,
         }
 
         for role in roles:
-            overwrites[role] = user_overwrite
+            overwrites[role] = ticket_overwrite
 
-        channel = await guild.create_text_channel(name=f"{user}-{channel_name}", category=category,
-                                                  overwrites=overwrites)
-        embed = disnake.Embed(description=f"Чтобы закрыть тикет, нажмите кнопку ниже")
+        query = ("UPDATE tickets "
+                 "SET total_created_tickets_number = total_created_tickets_number + 1 "
+                 "WHERE guild_id = $1")
+        await self.pool.execute(query, ctx.guild.id)
 
-        await channel.send(
-            embed=embed,
-            components=[
-                disnake.ui.Button(label="Закрыть тикет", style=disnake.ButtonStyle.red,
-                                  custom_id="delete_channel_button", emoji="❌")
-            ]
-        )
-        allowed_mentions = disnake.AllowedMentions(users=True, roles=True)
+        ticket_number = await get_ticket_number(self.pool, ctx)
+        channel = await guild.create_text_channel(name=f"{ticket_number}┃{member}-{channel_name}", category=category,
+                                                  overwrites=overwrites, topic=f"Билет #{ticket_number}")
 
-        await channel.send(ping_roles, allowed_mentions=allowed_mentions)
-        await ctx.response.defer()
+        return channel
 
-    async def get_roles_and_text(self, ctx, message):
-        roles_to_add = [ctx.guild.get_role(role_id) for role_id in self.guild_mention_roles_ids]
-        roles_to_mention = ""
-        for role in roles_to_add:
-            roles_to_mention += f"{role.mention}, "
-        roles_to_mention += message
-        return roles_to_add, roles_to_mention
 
-    async def question_channel(self, ctx):
-        roles_to_add, roles_to_mention = \
-            await self.get_roles_and_text(ctx, f"вопрос от {ctx.author.mention}")
-        await self.create_ticket_channel(ctx=ctx, roles=roles_to_add,
-                                         ping_roles=roles_to_mention, channel_name="вопрос")
-
-    async def report_channel(self, ctx):
-        roles_to_add, roles_to_mention = \
-            await self.get_roles_and_text(ctx, f"жалоба от {ctx.author.mention}")
-        await self.create_ticket_channel(ctx=ctx, roles=roles_to_add,
-                                         ping_roles=roles_to_mention, channel_name="жалоба")
-
-    async def offer_channel(self, ctx):
-        roles_to_add, roles_to_mention = \
-            await self.get_roles_and_text(ctx, f"{ctx.author.mention} хочет что-то предложить")
-
-        await self.create_ticket_channel(ctx=ctx, roles=roles_to_add,
-                                         ping_roles=roles_to_mention, channel_name="предложение")
-
-    async def activate_cooldown(self, ctx):
-        self.guild_button_cooldown_end_time = datetime.now() + self.guild_button_cooldown
-        self.guild_button_cooldown_end_time.isoformat()
-        query = "INSERT INTO cooldown (guild_id, user_id, button_cooldown_end_time) " \
-                "VALUES ($1, $2, $3) " \
-                "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET user_id = $2, button_cooldown_end_time = $3"
-        await self.pool.execute(query, ctx.guild.id, ctx.author.id, self.guild_button_cooldown_end_time)
-
-    @commands.Cog.listener()
-    async def on_button_click(self, ctx: disnake.MessageInteraction):
-        button_id = ctx.component.custom_id
-        guild_id = ctx.guild.id
-
-        if button_id == "delete_channel_button":
-            await ctx.channel.delete()
-            return
-
-        class_buttons_ids = ["question_button", "report_button", "offer_button"]
-        if button_id not in class_buttons_ids:
-            return
-
-        try:
-            query = "SELECT tickets_category_id " \
-                    "FROM guild_settings " \
-                    "WHERE guild_id = $1"
-            self.guild_category_ids = await self.pool.fetchval(query, guild_id)
-
-            query = "SELECT roles_id_to_mention " \
-                    "FROM text_channels " \
-                    "WHERE guild_id = $1"
-            self.guild_mention_roles_ids = list(await self.pool.fetchval(query, guild_id))
-
-            query = "SELECT button_cooldown " \
-                    "FROM cooldown " \
-                    "WHERE guild_id = $1"
-            self.guild_button_cooldown = await self.pool.fetchval(query, guild_id)
-            self.guild_button_cooldown = timedelta(minutes=self.guild_button_cooldown)
-
-        except:
-            await ctx.send(
-                "Настройки для сервера не найдены. Обратитесь к администратору для настройки", ephemeral=True
-            )
-            return
-
-        cooldown_active = False
-        response = ""
-
-        query = "SELECT button_cooldown_end_time " \
-                "FROM cooldown " \
-                "WHERE guild_id = $1 and user_id = $2"
-
-        row = await self.pool.fetchrow(query, ctx.guild.id, ctx.author.id)
-        if row:
-            self.guild_button_cooldown_end_time = row["button_cooldown_end_time"]
-            tz_time = datetime.now().astimezone(self.guild_button_cooldown_end_time.tzinfo)
-
-            if self.guild_button_cooldown_end_time and \
-                    self.guild_button_cooldown_end_time > tz_time:
-                remaining_time = self.guild_button_cooldown_end_time - tz_time
-                remaining_time = str(remaining_time).split(".")[0]
-                response = f"Вы сможете нажать на кнопку ещё раз через {remaining_time} (часы:минуты:секунды)"
-                cooldown_active = True
-
-        if cooldown_active:
-            await ctx.send(response, ephemeral=True)
-        else:
-            try:
-                match button_id:
-                    case "question_button":
-                        await self.question_channel(ctx)
-                    case "report_button":
-                        await self.report_channel(ctx)
-                    case "offer_button":
-                        await self.offer_channel(ctx)
-
-                await self.activate_cooldown(ctx)
-            except:
-                await ctx.send("Не могу создать канал. Нет доступа к категории тикетов", ephemeral=True)
-                return
+class TicketsCommands(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.pool = asyncpg.Pool = bot.get_pool()
 
     @commands.slash_command()
     async def create(self, ctx):
         pass
 
     @create.sub_command()
-    async def tickets_creator(self, ctx: disnake.CommandInteraction, image_url: str = None):
+    async def tickets_creator(self, ctx: disnake.CommandInteraction,
+                              image_url: str = None):
         """Создать embed с кнопками
         Parameters
         ----------
         ctx: command interaction
         image_url: Добавить изображение
         """
-        view = ButtonView()
+        query = ("SELECT question_button_emoji "
+                 "FROM ticket_buttons_emojis "
+                 "WHERE guild_id = $1")
+        question_button_emoji = await self.pool.fetchval(query, ctx.guild.id)
+
+        query = ("SELECT report_button_emoji "
+                 "FROM ticket_buttons_emojis "
+                 "WHERE guild_id = $1")
+        report_button_emoji = await self.pool.fetchval(query, ctx.guild.id)
+
+        query = ("SELECT offer_button_emoji "
+                 "FROM ticket_buttons_emojis "
+                 "WHERE guild_id = $1")
+        offer_button_emoji = await self.pool.fetchval(query, ctx.guild.id)
+
+        buttons = [
+            disnake.ui.Button(label="Вопрос", style=disnake.ButtonStyle.grey,
+                              custom_id="question_button", emoji=question_button_emoji or "❔"),
+            disnake.ui.Button(label="Жалоба", style=disnake.ButtonStyle.red,
+                              custom_id="report_button", emoji=report_button_emoji or "❕"),
+            disnake.ui.Button(label="Предложение", style=disnake.ButtonStyle.blurple,
+                              custom_id="offer_button", emoji=offer_button_emoji or "📝")
+        ]
         embeds = []
         if image_url:
             embed1 = (
                 disnake.Embed(
                     description="",
-                    color=0x3f8fdf,
+                    color=0x3f8fdf
                 )
                 .set_image(url=image_url)
             )
@@ -210,7 +254,7 @@ class Tickets(commands.Cog):
         )
         embeds.append(embed2)
         try:
-            await ctx.channel.send(embeds=embeds, view=view)
+            await ctx.channel.send(embeds=embeds, components=buttons)
             await ctx.send("Создан embed с кнопками", ephemeral=True)
         except:
             await ctx.send("Не удалось отправить сообщение.\n"
@@ -231,30 +275,140 @@ class Tickets(commands.Cog):
         else:
             return False
 
-    async def member_overwrite(self, ctx, member, overwrite, message):
-        if await self.is_ticket(ctx):
-            await ctx.channel.set_permissions(member, overwrite=overwrite)
-            await ctx.send(message)
-        else:
-            await ctx.send("Вы можете использовать эту команду только в тикетах", ephemeral=True)
-
     @commands.slash_command()
     async def user(self, ctx):
         pass
 
     @user.sub_command()
-    async def add(self, ctx: disnake.CommandInteraction, member: disnake.Member):
+    async def add(self, ctx: disnake.CommandInteraction,
+                  member: disnake.Member):
         """Добавить участника в этот канал"""
+        if not await self.is_ticket(ctx):
+            await ctx.send("Вы можете использовать эту команду только в билетах", ephemeral=True)
+            return
         overwrite = disnake.PermissionOverwrite(view_channel=True)
-        message = f"Пользователь {member.mention} добавлен в этот чат"
-        await self.member_overwrite(ctx, member, overwrite, message)
+        await ctx.channel.set_permissions(member, overwrite=overwrite)
+        await ctx.send(f"Пользователь {member.mention} добавлен в этот чат")
 
     @user.sub_command()
-    async def remove(self, ctx: disnake.CommandInteraction, member: disnake.Member):
+    async def remove(self, ctx: disnake.CommandInteraction,
+                     member: disnake.Member):
+        if not await self.is_ticket(ctx):
+            await ctx.send("Вы можете использовать эту команду только в билетах", ephemeral=True)
+            return
         """Удалить участника из этого канала"""
-        message = f"Пользователь {member.mention} удалён из этого чата"
-        await self.member_overwrite(ctx, member, None, message)
+        await ctx.channel.set_permissions(member, overwrite=None)
+        await ctx.send(f"Пользователь {member.mention} удалён из этого чата")
+
+
+class Tickets(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.pool = bot.get_pool()
+
+    @commands.Cog.listener()
+    async def on_button_click(self, ctx: disnake.MessageInteraction):
+        button_id = ctx.component.custom_id
+        guild_id = ctx.guild.id
+
+        if button_id not in ButtonsIDs:
+            return
+
+        if button_id == ButtonsIDs.CLOSE:
+            await ctx.response.defer()
+            channel: disnake.TextChannel = ctx.channel  # type: ignore
+            channel_overwrites = channel.overwrites
+            for key in channel_overwrites:
+                if str(key) == "@everyone":
+                    continue
+                if key == self.bot.user:
+                    continue
+                if isinstance(key, disnake.Member):
+                    await channel.set_permissions(key, view_channel=False,
+                                                  send_messages=False)
+                    continue
+                await channel.set_permissions(key, view_channel=True,
+                                              send_messages=False)
+
+            query = ("SELECT closed_tickets_category_id "
+                     "FROM tickets "
+                     "WHERE guild_id = $1")
+            closed_tickets_category_id = await self.pool.fetchval(query, guild_id)
+            if closed_tickets_category_id:
+                category = ctx.guild.get_channel(closed_tickets_category_id)
+                await channel.move(category=category, beginning=True)
+
+            embed = disnake.Embed(description=f"Билет закрыт пользователем {ctx.author.name}.\n"
+                                              f"Нажмите на кнопку для удаления канала")
+
+            query = ("SELECT delete_button_emoji "
+                     "FROM ticket_buttons_emojis "
+                     "WHERE guild_id = $1")
+            emoji = await self.pool.fetchval(query, ctx.guild.id)
+
+            await channel.send(
+                embed=embed,
+                components=[
+                    disnake.ui.Button(label="Удалить билет", style=disnake.ButtonStyle.red,
+                                      custom_id="delete_button", emoji=emoji or "✖")
+                ]
+            )
+            await ctx.message.set(components=None)
+            ticket_number = ctx.channel.topic.split("#")[1]
+            await send_ticket_log(pool=self.pool, title=f"Билет #{ticket_number} закрыт",
+                                  ctx=ctx, description=f"Закрыт участником {ctx.author.mention}(`{ctx.author.id}`)",
+                                  color=disnake.Color.yellow())
+
+        if button_id == ButtonsIDs.DELETE:
+            await ctx.response.defer()
+            ticket_number = ctx.channel.topic.split("#")[1]
+            await send_ticket_log(pool=self.pool, title=f"Билет #{ticket_number} удалён",
+                                  ctx=ctx, description=f"Удалён участником {ctx.author.mention}(`{ctx.author.id}`)",
+                                  color=disnake.Color.red())
+
+            await ctx.channel.delete()
+
+        # try:
+        #     query = "SELECT button_cooldown_end_time " \
+        #             "FROM ticket_users_button_cooldown " \
+        #             "WHERE guild_id = $1 and user_id = $2"
+        #     user_button_cooldown = await self.pool.fetchval(query, guild_id,
+        #                                                     ctx.user.id)
+        #     user_button_cooldown = timedelta(minutes=user_button_cooldown)
+        #
+        # except:
+        #     await ctx.send(
+        #         "Настройки для сервера не найдены. Обратитесь к администратору", ephemeral=True)
+        #     return
+
+        if button_id == ButtonsIDs.QUESTION:
+            modal_window = ModalWindow(name="Тема вопроса", name_placeholder="Напишите тему своего вопроса",
+                                       description="Полный вопрос",
+                                       description_placeholder="Напишите свой вопрос развёрнуто",
+                                       ctx=ctx, button_category=ButtonsIDs.QUESTION,
+                                       title="Задать вопрос", pool=self.pool,
+                                       ticket_purpose="Вопрос")
+            await ctx.response.send_modal(modal_window)
+
+        elif button_id == ButtonsIDs.REPORT:
+            modal_window = ModalWindow(name="Краткая информация", name_placeholder="Напишите коротко о ситуации",
+                                       description="Полная информация",
+                                       description_placeholder="Опишите ситуацию полностью",
+                                       ctx=ctx, button_category=ButtonsIDs.REPORT,
+                                       title="Подать жалобу", pool=self.pool,
+                                       ticket_purpose="Жалоба")
+            await ctx.response.send_modal(modal_window)
+
+        elif button_id == ButtonsIDs.OFFER:
+            modal_window = ModalWindow(name="Тема предложения", name_placeholder="Напишите тему предложения",
+                                       description="Полное предложение",
+                                       description_placeholder="Напишите своё предложение развёрнуто",
+                                       ctx=ctx, button_category=ButtonsIDs.OFFER,
+                                       title="Предложить идею", pool=self.pool,
+                                       ticket_purpose="Предложение")
+            await ctx.response.send_modal(modal_window)
 
 
 def setup(bot):
+    bot.add_cog(TicketsCommands(bot))
     bot.add_cog(Tickets(bot))

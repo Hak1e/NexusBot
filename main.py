@@ -4,7 +4,7 @@ import asyncio
 
 
 async def load_cogs(bot, root_directory):
-    bot.load_extensions("./cogs/")
+    bot.load_extensions(root_directory)
     for root, directories, files in os.walk(root_directory):
         for directory in directories:
             if directory == "__pycache__":

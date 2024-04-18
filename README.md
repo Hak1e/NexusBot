@@ -1,7 +1,6 @@
-What features are planned to add:
-
-Creating temporary text and voice channels with the ability to edit them;
-
-Moderation;
-
-Economy;
+Основные функции бота:
+Билеты
+Создание рейтинговых лобби
+Ведение журнала
+Пост артов/мемов
+Лог выхода пользователей

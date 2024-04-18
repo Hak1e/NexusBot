@@ -1,21 +1,26 @@
 import disnake
+from disnake import ApplicationCommandInteraction
 from disnake.ext import commands
 from core.db import Database
+from disnake.ext.commands import errors
+import datetime
+import traceback
+import sys
 
 
 class Nexus(commands.InteractionBot):
     def __init__(self) -> None:
         intents = disnake.Intents.all()
         super().__init__(intents=intents)
-        self._db = Database()
-        self._pool = None
+        self.db = Database()
+        self.pool = None
         self.bot = commands.InteractionBot
         self.persistent_views_added = False
 
     async def connect_to_db(self):
         print("Подключаюсь к базе данных")
-        await self._db.connect()
-        self._pool = self._db.get_pool()
+        await self.db.connect()
+        self.pool = self.db.get_pool()
         print(f"Подключено")
 
     async def on_ready(self):
@@ -24,14 +29,14 @@ class Nexus(commands.InteractionBot):
         print(f"Активные серверы ({len(guilds)}):")
         counter = 1
         for guild in guilds:
-            print(f"{counter}) {guild.name}")
+            print(f"{counter}) {guild.name}, id: {guild.id}")
             counter += 1
 
     def get_db(self):
-        return self._db
+        return self.db
 
     def get_pool(self):
-        return self._pool
+        return self.pool
 
 
 

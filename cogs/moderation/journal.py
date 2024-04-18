@@ -2,7 +2,6 @@ import disnake
 from disnake.ext import commands
 from core.bot import Nexus
 import asyncpg
-import datetime
 from models.button_view import PageButtons
 from typing import Optional
 import datetime
@@ -31,7 +30,9 @@ class Journal(commands.Cog):
         if not notes:
             empty_embed = disnake.Embed(title=f"Заметки для пользователя {user.name}", description="Заметок нет",
                                         color=disnake.Color.blurple())
-            await ctx.send(embed=empty_embed, ephemeral=ephemeral)
+            buttons = PageButtons([])
+            await ctx.send(embed=empty_embed, ephemeral=ephemeral,
+                           view=buttons)
             return
 
         pages = []
