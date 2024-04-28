@@ -68,19 +68,6 @@ CREATE TABLE IF NOT EXISTS user_roles (
     role_id BIGINT REFERENCES roles(role_id)
 );
 
-CREATE TABLE IF NOT EXISTS voice_creators (
-    guild_id BIGINT,
-    channel_creator_id BIGINT,
-    user_limit INT,
-    category_id BIGINT,
-    PRIMARY KEY (guild_id, channel_creator_id)
-);
-
-CREATE TABLE IF NOT EXISTS created_lobbies_category_id (
-    guild_id BIGINT PRIMARY KEY,
-    category_id BIGINT
-);
-
 CREATE TABLE IF NOT EXISTS bot_author (
     num SERIAL PRIMARY KEY,
     user_id BIGINT
@@ -93,16 +80,36 @@ CREATE TABLE IF NOT EXISTS error_logs_channel (
     channel_id BIGINT
 );
 
-CREATE TABLE IF NOT EXISTS rank_roles (
+-- region Lobbies
+alter table voice_creators rename to lobby_voice_creators;
+alter table category_rank_roles rename to lobby_category_rank_roles;
+alter table rating_lobby_text_channel_id rename to lobby_text_channel_ids;
+alter table created_lobbies_category_id rename to lobby_created_voice_channels_ids;
+
+CREATE TABLE IF NOT EXISTS lobby_voice_creators (
     guild_id BIGINT,
-    role_id BIGINT,
-    role_name TEXT,
-    PRIMARY KEY (guild_id, role_id)
+    channel_creator_id BIGINT,
+    user_limit INT,
+    category_id BIGINT,
+    PRIMARY KEY (guild_id, channel_creator_id)
 );
 
-CREATE TABLE IF NOT EXISTS rating_lobby_text_channel_id (
-    guild_id BIGINT PRIMARY KEY,
-    text_channel_id BIGINT
+drop table lobby_category_rank_roles;
+CREATE TABLE IF NOT EXISTS lobby_category_rank_roles (
+    guild_id BIGINT,
+    category_id BIGINT,
+    role_id BIGINT,
+    role_name TEXT,
+    role_needed BOOL DEFAULT FALSE,
+    PRIMARY KEY (guild_id, category_id, role_id)
+);
+alter table lobby_category_rank_roles add role_needed BOOL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS lobby_text_channel_ids (
+    guild_id BIGINT,
+    lobby_category_id BIGINT,
+    text_channel_id BIGINT,
+    PRIMARY KEY (guild_id, lobby_category_id)
 );
 
 CREATE TABLE IF NOT EXISTS lobby_messages (
@@ -111,6 +118,15 @@ CREATE TABLE IF NOT EXISTS lobby_messages (
     voice_channel_id BIGINT,
     PRIMARY KEY (guild_id, message_id)
 );
+
+CREATE TABLE IF NOT EXISTS lobby_created_voice_channels_ids (
+    guild_id BIGINT,
+    channel_creator_category_id BIGINT,
+    lobby_category_id BIGINT,
+    PRIMARY KEY (guild_id, channel_creator_category_id)
+);
+
+-- endregion
 
 CREATE TABLE IF NOT EXISTS tickets (
     guild_id BIGINT PRIMARY KEY,
