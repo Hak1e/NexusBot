@@ -5,8 +5,8 @@ import asyncpg
 from core.bot import Nexus
 import logging
 
-
 logger = logging.getLogger(__name__)
+
 
 class LobbyChannels(commands.Cog):
     def __init__(self, bot: Nexus):
@@ -93,7 +93,8 @@ class LobbyChannels(commands.Cog):
                                                    created_voice_channel.category.id)
         if not text_channel_id:
             return await created_voice_channel.send(f"{member.mention}, "
-                                                    f"Оповещение о создании комнаты не было создано из-за неверных настроек. Обратитесь к администратору за помощью")
+                                                    f"Оповещение о создании комнаты не было создано из-за неверных "
+                                                    f"настроек. Обратитесь к администратору за помощью")
 
         text_channel = member.guild.get_channel(text_channel_id)
 
@@ -177,7 +178,8 @@ class LobbyChannels(commands.Cog):
                                                                     user_limit=user_limit)
             if not user_rank_role:
                 await voice_channel.send(
-                    f"{member.mention}, у Вас не была найдена подходящая роль. Пожалуйста, выберите подходящую для категории роль")
+                    f"{member.mention}, у Вас не была найдена подходящая роль. Пожалуйста, выберите подходящую для "
+                    f"категории роль")
         else:
             voice_channel = await member.guild.create_voice_channel(name=f"【🏆】{user_rank_role.name}", category=category,
                                                                     overwrites=category_overwrites,
