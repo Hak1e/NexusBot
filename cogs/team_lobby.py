@@ -1,11 +1,12 @@
 import asyncio
-import time
-
 import disnake
 from disnake.ext import commands
 import asyncpg
 from core.bot import Nexus
+import logging
 
+
+logger = logging.getLogger(__name__)
 
 class LobbyChannels(commands.Cog):
     def __init__(self, bot: Nexus):
@@ -126,6 +127,7 @@ class LobbyChannels(commands.Cog):
                  "WHERE guild_id = $1 and message_id = $2")
         await self.pool.execute(query, member.guild.id,
                                 message_id)
+        return True
 
     async def get_rank_role(self, member,
                             joined_voice_channel):
@@ -255,8 +257,19 @@ class LobbyChannels(commands.Cog):
 
         if self.left_lobby_room(before, lobby_categories_ids):
             if self.empty_voice_channel(before):
-                await self.delete_lobby_info(member, before.channel)
-                await before.channel.delete()
+                try:
+                    if await self.delete_lobby_info(member, before.channel):
+                        await before.channel.delete()
+                except commands.ChannelNotFound:
+                    try:
+                        channel = before.channel.guild.get_channel(before.channel.id)
+                        if channel:
+                            await channel.delete()
+                    except Exception as e:
+                        logger.error(f"Failed to delete voice channel\nError:{e}")
+                except Exception as e:
+                    logger.error(f"Failed to delete lobby info or channel\nError: {e}")
+
             else:
                 await self.update_lobby_info(before.channel.members, before.channel)
 
