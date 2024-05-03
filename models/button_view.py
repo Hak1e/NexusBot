@@ -1,5 +1,4 @@
 import disnake
-from disnake.ext import commands
 
 
 class PageButtons(disnake.ui.View):
@@ -11,8 +10,9 @@ class PageButtons(disnake.ui.View):
     async def on_timeout(self) -> None:
         self.stop()
 
-    async def updated_buttons(self, ctx,
-                              btn_left=False, btn_right=False):
+    @staticmethod
+    async def update_buttons(ctx, btn_left=False,
+                             btn_right=False):
         component: list = ctx.message.components.copy()
         custom_buttons_ids = [button.custom_id for button in component[0].children]
 
@@ -54,7 +54,7 @@ class PageButtons(disnake.ui.View):
     async def first_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
         if self.current_page != 0:
             self.current_page = 0
-            buttons = await self.updated_buttons(ctx, btn_left=True)
+            buttons = await self.update_buttons(ctx, btn_left=True)
             await ctx.response.edit_message(embed=self.pages[self.current_page],
                                             components=buttons)
         else:
@@ -65,7 +65,7 @@ class PageButtons(disnake.ui.View):
         if self.current_page > 0:
             self.current_page -= 1
             if self.current_page == 0:
-                buttons = await self.updated_buttons(ctx, btn_left=True)
+                buttons = await self.update_buttons(ctx, btn_left=True)
                 await ctx.response.edit_message(embed=self.pages[self.current_page],
                                                 components=buttons)
             else:
@@ -78,7 +78,7 @@ class PageButtons(disnake.ui.View):
         if self.current_page < len(self.pages) - 1:
             self.current_page += 1
             if self.current_page == len(self.pages) - 1:
-                buttons = await self.updated_buttons(ctx, btn_right=True)
+                buttons = await self.update_buttons(ctx, btn_right=True)
                 await ctx.response.edit_message(embed=self.pages[self.current_page],
                                                 components=buttons)
             else:
@@ -90,7 +90,7 @@ class PageButtons(disnake.ui.View):
     async def last_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
         if self.current_page != len(self.pages) - 1:
             self.current_page = len(self.pages) - 1
-            buttons = await self.updated_buttons(ctx, btn_right=True)
+            buttons = await self.update_buttons(ctx, btn_right=True)
             await ctx.response.edit_message(embed=self.pages[self.current_page],
                                             components=buttons)
         else:
