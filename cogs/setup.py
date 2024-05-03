@@ -514,6 +514,7 @@ class SetupBot(commands.Cog):
     # region Lobby
     @commands.slash_command()
     async def lobby(self, ctx):
+        """Настроить создание лобби-каналов"""
         pass
 
     @lobby.sub_command()
