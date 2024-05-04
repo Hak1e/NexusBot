@@ -4,8 +4,71 @@ from disnake.ext import commands
 import asyncpg
 from core.bot import Nexus
 import logging
+from constants import MAX_ITEMS_IN_MENU, MAX_SELECT_MENUS
 
 logger = logging.getLogger(__name__)
+
+
+class SelectMembers(disnake.ui.Select):
+    def __init__(self, ctx):
+        self.none_value = "None"
+        self.all_views = []
+        self.selected_members_id = []
+        self.ctx = ctx
+        members = ctx.channel.members
+        role_chunks = [members[position:position + MAX_ITEMS_IN_MENU - 1] for position in
+                       range(0, len(members), MAX_ITEMS_IN_MENU - 1)]
+
+        for chunk_position in range(0, len(role_chunks), MAX_SELECT_MENUS):
+            view = disnake.ui.View(timeout=None)
+            for chunk in role_chunks[chunk_position:chunk_position + MAX_SELECT_MENUS]:
+                options = [disnake.SelectOption(label="Не выбрано", value=self.none_value)]
+                for role in chunk:
+                    options.append(disnake.SelectOption(label=role.name, value=str(role.id),))
+
+                select_menu = disnake.ui.Select(options=options, placeholder="Выберите роль",
+                                                min_values=1, max_values=len(options))
+                view.add_item(select_menu)
+            self.all_views.append(view)
+
+    async def send_select_menus(self):
+        for view in self.all_views:
+            await self.ctx.channel.send("Выберите до 15 участников", view=view)
+
+    async def callback(self, ctx: disnake.MessageInteraction):
+        if not ctx.values:
+            await ctx.response.defer()
+        else:
+            self.selected_members_id = [int(member_id) for member_id in ctx.values
+                                        if member_id != self.none_value and member_id != str(ctx.author.id)]
+
+            for member_id in self.selected_members_id:
+                member = ctx.guild.get_member(member_id)
+                if member in ctx.channel.members:
+                    await member.move_to(None)  # type: ignore
+
+
+class DashboardButtons(disnake.ui.View):
+    def __init__(self):
+        super().__init__(timeout=0)
+
+    async def on_timeout(self) -> None:
+        self.stop()
+
+    @disnake.ui.button(label="Выгнать", style=disnake.ButtonStyle.blurple)
+    async def kick_from_room(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+        await ctx.response.defer()
+        select_members = SelectMembers(ctx)
+        await select_members.send_select_menus()
+
+
+    # @disnake.ui.button(label="Забанить", style=disnake.ButtonStyle.blurple)
+    # async def ban_in_room(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    #     pass
+    #
+    # @disnake.ui.button(label="Права", style=disnake.ButtonStyle.blurple)
+    # async def room_rights(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    #     pass
 
 
 class LobbyChannels(commands.Cog):
@@ -13,6 +76,7 @@ class LobbyChannels(commands.Cog):
         self.bot = bot
         self.pool: asyncpg.Pool = bot.get_pool()
 
+    # region Lobby info
     @staticmethod
     def create_lobby_info(member, role: disnake.Role,
                           voice_channel: disnake.VoiceChannel, user_limit):
@@ -129,6 +193,7 @@ class LobbyChannels(commands.Cog):
         await self.pool.execute(query, member.guild.id,
                                 message_id)
         return True
+    # endregion
 
     async def get_rank_role(self, member,
                             joined_voice_channel):
@@ -186,6 +251,14 @@ class LobbyChannels(commands.Cog):
                                                                     user_limit=user_limit)
 
         return voice_channel, user_rank_role
+
+    @staticmethod
+    async def create_dashboard(channel):
+        embed = (disnake.Embed(title=f"Создан голосовой канал {channel.name}\n"
+                                     f"Владелец канала: X"))
+        dashboard_buttons = DashboardButtons()
+        await channel.send(embed=embed, view=dashboard_buttons)
+
 
     # region Condition check
 
@@ -310,6 +383,7 @@ class LobbyChannels(commands.Cog):
                                                created_voice_channel, created_voice_channel.user_limit)
                 await self.send_lobby_info(member, created_voice_channel,
                                            embed)
+                await self.create_dashboard(created_voice_channel)
             elif not created_voice_channel.members:
                 try:
                     await self.delete_lobby_info(member, created_voice_channel)
