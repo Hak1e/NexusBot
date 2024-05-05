@@ -62,6 +62,8 @@ class VoiceDisconnectMenu(disnake.ui.Select):
     async def callback(self, ctx: disnake.MessageInteraction):
         selected_members_ids = self.values
         for member_id in selected_members_ids:
+            if member_id == ctx.author.id:
+                continue
             member = ctx.guild.get_member(int(member_id))
             if member in ctx.channel.members:
                 await member.move_to(None)  # type: ignore
@@ -81,16 +83,25 @@ class DashboardButtons(disnake.ui.View):
         members = voice_channel.members
         menus = []
 
-        for i in range(0, len(members), 25):
-            menu = VoiceDisconnectMenu(members[i:i + 25])
+        for position in range(0, len(members), 25):
+            menu = VoiceDisconnectMenu(members[position:position + 25])
             menus.append(menu)
 
         view = disnake.ui.View()
-        for menu in menus:
-            view.add_item(menu)
-
-        await ctx.send("Выберите участника для отключения:", view=view,
-                       ephemeral=True)
+        menu_number = 0
+        part = 1
+        for counter in range(len(menus) + 1):
+            if menu_number == MAX_SELECT_MENUS:
+                await ctx.send(f"Часть {part}) Выберите участников для отключения:", view=view,
+                               ephemeral=True)
+                menu_number = 0
+                part += 1
+            elif counter == len(menus):
+                await ctx.send("Выберите участников для отключения:", view=view,
+                               ephemeral=True)
+            else:
+                view.add_item(menus[counter])
+                menu_number += 1
 
     # @disnake.ui.button(label="Забанить", style=disnake.ButtonStyle.blurple)
     # async def ban_in_room(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
