@@ -9,43 +9,63 @@ from constants import MAX_ITEMS_IN_MENU, MAX_SELECT_MENUS
 logger = logging.getLogger(__name__)
 
 
-class SelectMembers(disnake.ui.Select):
-    def __init__(self, ctx):
-        self.none_value = "None"
-        self.all_views = []
-        self.selected_members_id = []
-        self.ctx = ctx
-        members = ctx.channel.members
-        role_chunks = [members[position:position + MAX_ITEMS_IN_MENU - 1] for position in
-                       range(0, len(members), MAX_ITEMS_IN_MENU - 1)]
+# class SelectMembers(disnake.ui.Select):
+#     def __init__(self, ctx):
+#         self.none_value = "None"
+#         self.all_views = []
+#         self.selected_members_id = []
+#         self.ctx = ctx
+#         members = ctx.channel.members
+#         role_chunks = [members[position:position + MAX_ITEMS_IN_MENU - 1] for position in
+#                        range(0, len(members), MAX_ITEMS_IN_MENU - 1)]
+#
+#         for chunk_position in range(0, len(role_chunks), MAX_SELECT_MENUS):
+#             view = disnake.ui.View(timeout=None)
+#             for chunk in role_chunks[chunk_position:chunk_position + MAX_SELECT_MENUS]:
+#                 options = [disnake.SelectOption(label="Не выбрано", value=self.none_value)]
+#                 for role in chunk:
+#                     options.append(disnake.SelectOption(label=role.name, value=str(role.id),))
+#
+#                 select_menu = disnake.ui.Select(options=options, placeholder="Выберите роль",
+#                                                 min_values=1, max_values=len(options))
+#                 view.add_item(select_menu)
+#             self.all_views.append(view)
+#
+#     async def send_select_menus(self):
+#         for view in self.all_views:
+#             await self.ctx.channel.send("Выберите до 15 участников", view=view)
+#
+#     async def callback(self, ctx: disnake.MessageInteraction):
+#         print("Event triggered")
+#         await ctx.send("Hello!")
+#         # if not ctx.values:
+#         #     await ctx.response.defer()
+#         # else:
+#         #     self.selected_members_id = [int(member_id) for member_id in ctx.values
+#         #                                 if member_id != self.none_value and member_id != str(ctx.author.id)]
+#         #
+#         #     for member_id in self.selected_members_id:
+#         #         member = ctx.guild.get_member(member_id)
+#         #         if member in ctx.channel.members:
+#         #             await member.move_to(None)  # type: ignore
 
-        for chunk_position in range(0, len(role_chunks), MAX_SELECT_MENUS):
-            view = disnake.ui.View(timeout=None)
-            for chunk in role_chunks[chunk_position:chunk_position + MAX_SELECT_MENUS]:
-                options = [disnake.SelectOption(label="Не выбрано", value=self.none_value)]
-                for role in chunk:
-                    options.append(disnake.SelectOption(label=role.name, value=str(role.id),))
-
-                select_menu = disnake.ui.Select(options=options, placeholder="Выберите роль",
-                                                min_values=1, max_values=len(options))
-                view.add_item(select_menu)
-            self.all_views.append(view)
-
-    async def send_select_menus(self):
-        for view in self.all_views:
-            await self.ctx.channel.send("Выберите до 15 участников", view=view)
+class VoiceDisconnectMenu(disnake.ui.Select):
+    def __init__(self, members):
+        options = [disnake.SelectOption(label=member.name, value=str(member.id)) for member in members]
+        super().__init__(
+            placeholder="Выберите участника",
+            min_values=1,
+            max_values=len(options),
+            options=options
+        )
 
     async def callback(self, ctx: disnake.MessageInteraction):
-        if not ctx.values:
-            await ctx.response.defer()
-        else:
-            self.selected_members_id = [int(member_id) for member_id in ctx.values
-                                        if member_id != self.none_value and member_id != str(ctx.author.id)]
-
-            for member_id in self.selected_members_id:
-                member = ctx.guild.get_member(member_id)
-                if member in ctx.channel.members:
-                    await member.move_to(None)  # type: ignore
+        selected_members_ids = self.values
+        for member_id in selected_members_ids:
+            member = ctx.guild.get_member(int(member_id))
+            if member in ctx.channel.members:
+                await member.move_to(None)  # type: ignore
+        await ctx.send(f"Выбранные участники были отключены", ephemeral=True)
 
 
 class DashboardButtons(disnake.ui.View):
@@ -57,10 +77,20 @@ class DashboardButtons(disnake.ui.View):
 
     @disnake.ui.button(label="Выгнать", style=disnake.ButtonStyle.blurple)
     async def kick_from_room(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
-        await ctx.response.defer()
-        select_members = SelectMembers(ctx)
-        await select_members.send_select_menus()
+        voice_channel = ctx.author.voice.channel
+        members = voice_channel.members
+        menus = []
 
+        for i in range(0, len(members), 25):
+            menu = VoiceDisconnectMenu(members[i:i + 25])
+            menus.append(menu)
+
+        view = disnake.ui.View()
+        for menu in menus:
+            view.add_item(menu)
+
+        await ctx.send("Выберите участника для отключения:", view=view,
+                       ephemeral=True)
 
     # @disnake.ui.button(label="Забанить", style=disnake.ButtonStyle.blurple)
     # async def ban_in_room(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
@@ -193,6 +223,7 @@ class LobbyChannels(commands.Cog):
         await self.pool.execute(query, member.guild.id,
                                 message_id)
         return True
+
     # endregion
 
     async def get_rank_role(self, member,
@@ -258,7 +289,6 @@ class LobbyChannels(commands.Cog):
                                      f"Владелец канала: X"))
         dashboard_buttons = DashboardButtons()
         await channel.send(embed=embed, view=dashboard_buttons)
-
 
     # region Condition check
 
