@@ -7,7 +7,6 @@ import logging
 from constants import MAX_ITEMS_IN_MENU, MAX_SELECT_MENUS
 import enum
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +21,7 @@ class MembersSelectMenu(disnake.ui.Select):
                  action=ChannelActions.kick):
         options = [disnake.SelectOption(label=member.name, value=str(member.id)) for member in members]
         super().__init__(
-            placeholder="Выберите участника",
+            placeholder="Выберите участников",
             min_values=1,
             max_values=len(options),
             options=options
@@ -53,8 +52,8 @@ class DashboardButtons(disnake.ui.View):
     async def on_timeout(self) -> None:
         self.stop()
 
-    @disnake.ui.button(label="Выгнать", style=disnake.ButtonStyle.blurple)
-    async def kick_from_room(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @staticmethod
+    async def create_member_select_menus(ctx, action = ChannelActions.kick):
         voice_channel = ctx.author.voice.channel
         members = [member for member in voice_channel.members if member != ctx.author]
         if not members:
@@ -63,7 +62,7 @@ class DashboardButtons(disnake.ui.View):
 
         menus = []
         for position in range(0, len(members), MAX_ITEMS_IN_MENU):
-            menu = MembersSelectMenu(members[position:position + MAX_ITEMS_IN_MENU])
+            menu = MembersSelectMenu(members[position:position + MAX_ITEMS_IN_MENU], action=action)
             menus.append(menu)
 
         view = disnake.ui.View()
@@ -71,45 +70,24 @@ class DashboardButtons(disnake.ui.View):
         part = 1
         for counter in range(len(menus) + 1):
             if menu_number == MAX_SELECT_MENUS:
-                await ctx.send(f"Часть {part}) Выберите участников для отключения:", view=view,
+                await ctx.send(view=view,
                                ephemeral=True)
                 menu_number = 0
                 part += 1
             elif counter == len(menus):
-                await ctx.send("Выберите участников для отключения:", view=view,
+                await ctx.send(view=view,
                                ephemeral=True)
             else:
                 view.add_item(menus[counter])
                 menu_number += 1
+
+    @disnake.ui.button(label="Выгнать", style=disnake.ButtonStyle.blurple)
+    async def kick_from_room(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+        await self.create_member_select_menus(ctx)
 
     @disnake.ui.button(label="Забанить", style=disnake.ButtonStyle.blurple)
     async def ban_in_room(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
-        voice_channel = ctx.author.voice.channel
-        members = [member for member in voice_channel.members if member != ctx.author]
-        if not members:
-            await ctx.send("В канале никого, кроме Вас", ephemeral=True)
-            return
-
-        menus = []
-        for position in range(0, len(members), MAX_ITEMS_IN_MENU):
-            menu = MembersSelectMenu(members[position:position + MAX_ITEMS_IN_MENU], action=ChannelActions.ban)
-            menus.append(menu)
-
-        view = disnake.ui.View()
-        menu_number = 0
-        part = 1
-        for counter in range(len(menus) + 1):
-            if menu_number == MAX_SELECT_MENUS:
-                await ctx.send(f"Часть {part}) Выберите участников для бана в этом канале:", view=view,
-                               ephemeral=True)
-                menu_number = 0
-                part += 1
-            elif counter == len(menus):
-                await ctx.send("Выберите участников для бана в этом канале:", view=view,
-                               ephemeral=True)
-            else:
-                view.add_item(menus[counter])
-                menu_number += 1
+        await self.create_member_select_menus(ctx, ChannelActions.ban)
 
     #
     # @disnake.ui.button(label="Права", style=disnake.ButtonStyle.blurple)
