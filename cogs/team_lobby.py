@@ -105,8 +105,8 @@ class DashboardButtons(disnake.ui.View):
             return
 
         menus = []
-        for position in range(0, len(members), 25):
-            menu = KickMemberFromVoiceSelectMenu(members[position:position + 25])
+        for position in range(0, len(members), MAX_ITEMS_IN_MENU):
+            menu = KickMemberFromVoiceSelectMenu(members[position:position + MAX_ITEMS_IN_MENU])
             menus.append(menu)
 
         view = disnake.ui.View()
@@ -134,8 +134,8 @@ class DashboardButtons(disnake.ui.View):
             return
 
         menus = []
-        for position in range(0, len(members), 25):
-            menu = BanMemberInVoiceSelectMenu(members[position:position + 25])
+        for position in range(0, len(members), MAX_ITEMS_IN_MENU):
+            menu = BanMemberInVoiceSelectMenu(members[position:position + MAX_ITEMS_IN_MENU])
             menus.append(menu)
 
         view = disnake.ui.View()
