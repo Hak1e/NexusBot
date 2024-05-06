@@ -60,12 +60,12 @@ class KickMemberFromVoiceSelectMenu(disnake.ui.Select):
         )
 
     async def callback(self, ctx: disnake.MessageInteraction):
+        await ctx.response.defer()
         selected_members_ids = self.values
         for member_id in selected_members_ids:
             member = ctx.guild.get_member(int(member_id))
             if member in ctx.channel.members:
                 await member.move_to(None)  # type: ignore
-        await ctx.send(f"Выбранные участники были отключены", ephemeral=True)
 
 
 class BanMemberInVoiceSelectMenu(disnake.ui.Select):
@@ -79,14 +79,14 @@ class BanMemberInVoiceSelectMenu(disnake.ui.Select):
         )
 
     async def callback(self, ctx: disnake.MessageInteraction):
+        await ctx.response.defer()
         selected_members_ids = self.values
+        voice_channel: disnake.VoiceChannel = ctx.author.voice.channel
         for member_id in selected_members_ids:
             member = ctx.guild.get_member(int(member_id))
-            voice_channel: disnake.VoiceChannel = ctx.author.voice.channel
             await voice_channel.set_permissions(member, connect=False)
             if member in ctx.channel.members:
                 await member.move_to(None)  # type: ignore
-        await ctx.send(f"Выбранные участники были забанены в данном канале", ephemeral=True)
 
 
 class DashboardButtons(disnake.ui.View):
