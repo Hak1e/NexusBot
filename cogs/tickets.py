@@ -258,10 +258,11 @@ class TicketsCommands(commands.Cog):
             await ctx.send("Создан embed с кнопками", ephemeral=True)
         except:
             await ctx.send("Не удалось отправить сообщение.\n"
-                           "Убедитесь, что я могу:"
+                           "Убедитесь, что я могу:\n"
                            "Просматривать канал\n"
                            "Отправлять сообщения\n"
-                           "Встраивать ссылки\n"
+                           "Встраивать ссылки\n",
+                           ephemeral=True
                            )
 
     async def is_ticket(self, ctx):
