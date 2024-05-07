@@ -222,15 +222,18 @@ class SetupBot(commands.Cog):
 
     @tickets.sub_command()
     async def categories(self, ctx: disnake.CmdInter,
-                         tickets_category_id=None, closed_tickets_category_id=None):
+                         tickets_category: disnake.CategoryChannel = None,
+                         closed_tickets_category: disnake.CategoryChannel = None):
         """Настройка категорий тикетов
 
         Parameters
         ----------
         ctx: command interaction
-        tickets_category_id: Указать ID категории тикетов
-        closed_tickets_category_id: Указать ID категории закрытых тикетов
+        tickets_category: Указать категорию тикетов
+        closed_tickets_category: Указать категорию закрытых тикетов
         """
+        tickets_category_id = tickets_category.id or int(tickets_category)  # type: ignore
+        closed_tickets_category_id = closed_tickets_category.id or int(closed_tickets_category)  # type: ignore
         if tickets_category_id:
             query = "INSERT INTO tickets (guild_id, tickets_category_id)" \
                     "VALUES ($1, $2)" \
@@ -429,24 +432,6 @@ class SetupBot(commands.Cog):
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET roles_id_to_mention = $2"
         await self.pool.execute(query, ctx.guild.id, roles_id)
-        await ctx.send("Настройки сохранены")
-
-    @tickets.sub_command()
-    async def button_cooldown(self, ctx: disnake.CommandInteraction,
-                              time: int):
-        """Изменить кулдаун нажатия на кнопку для каждого пользователя
-
-        Parameters
-        ----------
-        ctx: command interaction
-        time: Количество минут
-        """
-        query = "INSERT INTO cooldown (guild_id, button_cooldown)" \
-                "VALUES ($1, $2)" \
-                "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET button_cooldown = $2"
-
-        await self.pool.execute(query, ctx.guild.id, time)
         await ctx.send("Настройки сохранены")
 
     # endregion
