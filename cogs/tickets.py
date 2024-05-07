@@ -186,10 +186,14 @@ class ModalWindow(Modal):
         await self.pool.execute(query, ctx.guild.id)
 
         ticket_number = await get_ticket_number(self.pool, ctx)
-        channel = await guild.create_text_channel(name=f"{ticket_number}┃{member}-{channel_name}", category=category,
-                                                  overwrites=overwrites, topic=f"Билет #{ticket_number}")
-
-        return channel
+        try:
+            channel = await guild.create_text_channel(name=f"{ticket_number}┃{member}-{channel_name}",
+                                                      category=category,
+                                                      overwrites=overwrites, topic=f"Билет #{ticket_number}")
+            return channel
+        except disnake.errors.Forbidden:
+            await ctx.send("Не удалось создать канал билета: недостаточно прав. Обратитесь к администратору",
+                           ephemeral=True)
 
 
 class TicketsCommands(commands.Cog):
