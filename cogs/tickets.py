@@ -360,7 +360,7 @@ class Tickets(commands.Cog):
                                       custom_id="delete_button", emoji=emoji or "✖")
                 ]
             )
-            await ctx.message.set(components=None)
+            await ctx.message.edit(components=None)
             ticket_number = ctx.channel.topic.split("#")[1]
             await send_ticket_log(pool=self.pool, title=f"Билет #{ticket_number} закрыт",
                                   ctx=ctx, description=f"Закрыт участником {ctx.author.mention}(`{ctx.author.id}`)",
