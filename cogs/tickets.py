@@ -186,10 +186,14 @@ class ModalWindow(Modal):
         await self.pool.execute(query, ctx.guild.id)
 
         ticket_number = await get_ticket_number(self.pool, ctx)
-        channel = await guild.create_text_channel(name=f"{ticket_number}┃{member}-{channel_name}", category=category,
-                                                  overwrites=overwrites, topic=f"Билет #{ticket_number}")
-
-        return channel
+        try:
+            channel = await guild.create_text_channel(name=f"{ticket_number}┃{member}-{channel_name}",
+                                                      category=category,
+                                                      overwrites=overwrites, topic=f"Билет #{ticket_number}")
+            return channel
+        except disnake.errors.Forbidden:
+            await ctx.send("Не удалось создать канал билета: недостаточно прав. Обратитесь к администратору",
+                           ephemeral=True)
 
 
 class TicketsCommands(commands.Cog):
@@ -258,10 +262,11 @@ class TicketsCommands(commands.Cog):
             await ctx.send("Создан embed с кнопками", ephemeral=True)
         except:
             await ctx.send("Не удалось отправить сообщение.\n"
-                           "Убедитесь, что я могу:"
+                           "Убедитесь, что я могу:\n"
                            "Просматривать канал\n"
                            "Отправлять сообщения\n"
-                           "Встраивать ссылки\n"
+                           "Встраивать ссылки\n",
+                           ephemeral=True
                            )
 
     async def is_ticket(self, ctx):
@@ -355,7 +360,7 @@ class Tickets(commands.Cog):
                                       custom_id="delete_button", emoji=emoji or "✖")
                 ]
             )
-            await ctx.message.set(components=None)
+            await ctx.message.edit(components=None)
             ticket_number = ctx.channel.topic.split("#")[1]
             await send_ticket_log(pool=self.pool, title=f"Билет #{ticket_number} закрыт",
                                   ctx=ctx, description=f"Закрыт участником {ctx.author.mention}(`{ctx.author.id}`)",
