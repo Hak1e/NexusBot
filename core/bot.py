@@ -1,8 +1,6 @@
 import disnake
-from disnake import ApplicationCommandInteraction
 from disnake.ext import commands
 from core.db import Database
-from disnake.ext.commands import errors
 import datetime
 import traceback
 import sys
@@ -31,6 +29,13 @@ class Nexus(commands.InteractionBot):
         for guild in guilds:
             print(f"{counter}) {guild.name}, id: {guild.id}")
             counter += 1
+
+    async def on_guild_join(self, guild):
+        add_guild_to_db_query = ("INSERT INTO guild (id, owner_id) "
+                                 "VALUES ($1, $2) "
+                                 "ON CONFLICT (id) DO NOTHING")
+        await self.pool.execute(add_guild_to_db_query, guild.id,
+                                guild.owner_id)
 
     def get_db(self):
         return self.db
