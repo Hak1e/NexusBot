@@ -89,56 +89,6 @@ class SendMessages(commands.Cog):
                 await ctx.channel.send("Время команды истекло. Для продолжения используйте команду заново")
                 return
 
-    # @commands.slash_command()
-    # async def create_invite(self, ctx, server_id):
-    #     guild: disnake.Guild = await self.bot.fetch_guild(server_id)
-    #     invites = await guild.invites()
-    #     await ctx.send(f"{invites[0]}")
-    @commands.slash_command()  # Говорящее название команды скрыто специально
-    async def test(self, ctx: disnake.CommandInteraction, num):
-        print(f"Команда для просмотра сообщений сервера использована {ctx.author.name} ({ctx.author.id})")
-        if ctx.author.id != 389787190986670082:
-            return
-
-        guild: disnake.Guild = await self.bot.fetch_guild(num)
-        s = ""
-        channels = await guild.fetch_channels()
-        await ctx.response.defer()
-        chnls = [channels[15], channels[14], channels[12], channels[6]]
-        for channel in chnls:
-            s += f"{channel.name}\n"
-            try:
-                print(f"Fetching {channel.name}")
-                async for message in channel.history(limit=500):
-                    content = message.content
-                    await ctx.send(content=content)
-            except Exception as e:
-                print(f"Skipping channel {channel.name}:\n{e}")
-
-    @commands.slash_command()  # Говорящее название команды скрыто специально
-    async def lalala(self, ctx: disnake.CommandInteraction, num):
-        print(f"Команда для выхода использована {ctx.author.name} ({ctx.author.id})")
-        if ctx.author.id != 389787190986670082:
-            return
-        guild: disnake.Guild = await self.bot.fetch_guild(num)
-        await guild.leave()
-        await ctx.send(f"Бот успешно вышел с сервера: {guild.name} `({guild.id})`", ephemeral=True)
-
-    @commands.slash_command()
-    async def get_guilds(self, ctx: disnake.CmdInter):
-        print(f"Команда для просмотра серверов использована {ctx.author.name} ({ctx.author.id})")
-        if ctx.author.id != 389787190986670082:
-            return
-        guilds = await self.bot.fetch_guilds().flatten()
-
-        counter = 1
-        message = f"Активные серверы ({len(guilds)}):\n"
-        for guild in guilds:
-            message += f"{counter}) {guild.name}, id: {guild.id}\n"
-            counter += 1
-
-        await ctx.send(f"{message}", ephemeral=True)
-
     @commands.slash_command()
     async def event_members(self, ctx: disnake.CommandInteraction,
                             bounty: int = None):
@@ -173,5 +123,7 @@ class SendMessages(commands.Cog):
             )
         )
         await ctx.send(embed=embed)
+
+
 def setup(bot):
     bot.add_cog(SendMessages(bot))
