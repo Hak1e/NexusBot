@@ -6,7 +6,7 @@ import logging
 from constants import MAX_ITEMS_IN_MENU, MAX_SELECT_MENUS
 import enum
 import json
-from models.author_settings import AuthorSettings
+from models.room_author_settings import AuthorSettings
 
 
 class ChannelActions(str, enum.Enum):

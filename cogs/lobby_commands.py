@@ -3,7 +3,7 @@ from disnake.ext import commands
 import asyncpg
 from cogs.team_lobby import MembersSelectMenu
 from cogs.team_lobby import ChannelActions
-from models.author_settings import AuthorSettings
+from models.room_author_settings import AuthorSettings
 
 
 class ChannelCommands(commands.Cog):
