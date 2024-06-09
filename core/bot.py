@@ -31,10 +31,10 @@ class Nexus(commands.InteractionBot):
             counter += 1
 
     async def on_guild_join(self, guild):
-        add_guild_to_db_query = ("INSERT INTO guild (id, owner_id) "
-                                 "VALUES ($1, $2) "
-                                 "ON CONFLICT (id) DO NOTHING")
-        await self.pool.execute(add_guild_to_db_query, guild.id,
+        query = ("INSERT INTO guild (id, owner_id) "
+                 "VALUES ($1, $2) "
+                 "ON CONFLICT (id) DO NOTHING")
+        await self.pool.execute(query, guild.id,
                                 guild.owner_id)
 
     def get_db(self):
@@ -42,11 +42,3 @@ class Nexus(commands.InteractionBot):
 
     def get_pool(self):
         return self.pool
-
-
-
-
-
-
-
-
