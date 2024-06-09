@@ -1,9 +1,10 @@
 import disnake
 from disnake.ext import commands
 from core.db import Database
-import datetime
-import traceback
-import sys
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class Nexus(commands.InteractionBot):
@@ -22,12 +23,12 @@ class Nexus(commands.InteractionBot):
         print(f"Подключено")
 
     async def on_ready(self):
-        print(f"Бот {self.user} готов к работе!")
+        logger.info(f"Бот {self.user} готов к работе!")
         guilds = await self.bot.fetch_guilds(self).flatten()
-        print(f"Активные серверы ({len(guilds)}):")
+        logger.info(f"Активные серверы ({len(guilds)}):")
         counter = 1
         for guild in guilds:
-            print(f"{counter}) {guild.name}, id: {guild.id}")
+            logger.info(f"{counter}) {guild.name}, id: {guild.id}")
             counter += 1
 
     async def on_guild_join(self, guild):
