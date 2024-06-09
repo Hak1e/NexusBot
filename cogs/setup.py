@@ -8,7 +8,7 @@ MAX_VIEWS_IN_MENU = 25
 MAX_BUTTONS_COUNT = 5
 
 
-# TODO: сделать нормальную настройку с кнопками и меню выбора. Когда-нибудь я это сделаю 🙂
+# TODO: сделать команду для создания рейтинговой комнаты со всеми нужными аргументами сразу
 
 
 class SelectRoles(disnake.ui.Select):
@@ -184,7 +184,7 @@ class SetupBot(commands.Cog):
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET goodbye_channel_id = $2"
         await self.pool.execute(query, ctx.guild.id, channel.id)
-        await ctx.send("Настройки сохранены")
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @set.sub_command()
     async def journal_logs(self, ctx: disnake.CmdInter,
@@ -218,7 +218,7 @@ class SetupBot(commands.Cog):
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET button_cooldown = $2"
         await self.pool.execute(query, ctx.guild.id, int(button_cooldown))
-        await ctx.send("Настройки сохранены")
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @tickets.sub_command()
     async def categories(self, ctx: disnake.CmdInter,
@@ -246,7 +246,7 @@ class SetupBot(commands.Cog):
                     "ON CONFLICT (guild_id) DO " \
                     "UPDATE SET closed_tickets_category_id = $2"
             await self.pool.execute(query, ctx.guild.id, int(closed_tickets_category_id))
-        await ctx.send("Настройки сохранены")
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @staticmethod
     async def get_roles_id(roles_str) -> list:
@@ -296,7 +296,7 @@ class SetupBot(commands.Cog):
             await self.pool.execute(query, ctx.guild.id,
                                     await self.get_roles_id(offer_roles_ids.split()))
 
-        await ctx.send("Настройки сохранены")
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @tickets.sub_command()
     async def show_roles(self, ctx: disnake.CmdInter,
@@ -389,7 +389,7 @@ class SetupBot(commands.Cog):
                      "ON CONFLICT (guild_id) DO "
                      "UPDATE SET delete_button_emoji = $2")
             await self.pool.execute(query, ctx.guild.id, delete_button)
-        await ctx.send("Настройки сохранены")
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @tickets.sub_command()
     async def logs(self, ctx: disnake.CmdInter,
@@ -401,7 +401,7 @@ class SetupBot(commands.Cog):
                  "ON CONFLICT (guild_id) DO "
                  "UPDATE SET logs_channel_id = $2")
         await self.pool.execute(query, ctx.guild.id, channel_id)
-        await ctx.send("Настройки сохранены")
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @tickets.sub_command()
     async def tickets_category(self, ctx: disnake.CommandInteraction,
@@ -413,7 +413,7 @@ class SetupBot(commands.Cog):
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET tickets_category_id = $2"
         await self.pool.execute(query, ctx.guild.id, category_id)
-        await ctx.send("Настройки сохранены")
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @tickets.sub_command()
     async def roles_mention(self, ctx: disnake.CommandInteraction,
@@ -432,7 +432,7 @@ class SetupBot(commands.Cog):
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET roles_id_to_mention = $2"
         await self.pool.execute(query, ctx.guild.id, roles_id)
-        await ctx.send("Настройки сохранены")
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     # endregion
 
@@ -458,7 +458,7 @@ class SetupBot(commands.Cog):
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET _like = $2, _dislike = $3"
         await self.pool.execute(query, ctx.guild.id, like, dislike)
-        await ctx.send("Настройки сохранены")
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @creativity.sub_command()
     async def art_channel(self, ctx: disnake.CommandInteraction,
@@ -475,7 +475,7 @@ class SetupBot(commands.Cog):
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET art_channel_id = $2"
         await self.pool.execute(query, ctx.guild.id, channel.id)
-        await ctx.send("Настройки сохранены")
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @creativity.sub_command()
     async def meme_channel(self, ctx: disnake.CommandInteraction,
@@ -492,7 +492,7 @@ class SetupBot(commands.Cog):
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET meme_channel_id = $2"
         await self.pool.execute(query, ctx.guild.id, channel.id)
-        await ctx.send("Настройки сохранены")
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     # endregion
 
@@ -503,116 +503,163 @@ class SetupBot(commands.Cog):
         pass
 
     @lobby.sub_command()
-    async def creators(self, ctx: disnake.CommandInteraction,
-                       voice_channel: disnake.VoiceChannel, user_limit):
-        """Указать канал для создания лобби
+    async def creators(self, ctx: disnake.CmdInter,
+                       channels_creators_ids, category: disnake.CategoryChannel,
+                       user_limit):
+        """Указать категорию, в которой будет создан канал при заходе в канал-генератор
 
         Parameters
         ----------
 
         ctx: command interaction
-        voice_channel: Начните вводить название голосового канала или введите его ID
-        user_limit: Лимит пользователей
+        channels_creators_ids: ID каналов, в которые нужно зайти для создания лобби
+        category: Категория, в которой будет создан новый канал
+        user_limit: Лимит пользователей для каждого канала через пробел
 
         """
-        voice_channel_id = voice_channel.id or int(voice_channel)  # type: ignore
-        query = ("INSERT INTO lobby_voice_creators(guild_id, channel_creator_id,"
-                 "user_limit, category_id) "
-                 "VALUES ($1, $2, $3, $4) "
-                 "ON CONFLICT (guild_id, channel_creator_id) DO "
-                 "UPDATE SET user_limit = $3")
-        voice_channel: disnake.VoiceChannel = ctx.guild.get_channel(voice_channel_id)
-        category_id = voice_channel.category.id
-        await self.pool.execute(query, ctx.guild.id,
-                                voice_channel_id, int(user_limit),
-                                category_id)
-        await ctx.send("Настройки сохранены")
+        category_id = category.id or int(category)  # type: ignore
+        channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
+        channels_creators_ids = map(int, channels_creators_ids)
+        user_limit = re.split(", |,| ,| ", user_limit)
+        user_limit = map(int, user_limit)
+        for channel_creator_id, limit in zip(channels_creators_ids, user_limit):
+            query = ("INSERT INTO lobby_voice_creators_v2(guild_id, channel_id,"
+                     "category_id_for_new_channel, user_limit) "
+                     "VALUES ($1, $2, $3, $4) "
+                     "ON CONFLICT (guild_id, channel_id) DO "
+                     "UPDATE SET category_id_for_new_channel = $3, user_limit = $4")
+            await self.pool.execute(query, ctx.guild.id,
+                                    channel_creator_id, category_id,
+                                    limit)
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
-    async def category(self, ctx: disnake.CommandInteraction,
-                       creators_category: disnake.CategoryChannel, lobby_category: disnake.CategoryChannel):
-        """Указать категорию, в которой будут создаваться комнаты
-
-        Parameters
-        ----------
-
-        ctx: disnake interaction
-        creators_category: Категория каналов для создания комнат
-        lobby_category: Категория, в которой будут создаваться лобби
-        """
-        creators_category_id = creators_category.id or int(creators_category)  # type: ignore
-        lobby_category_id = lobby_category.id or int(lobby_category)  # type: ignore
-        query = (
-            "INSERT INTO lobby_created_voice_channels_ids (guild_id, channel_creator_category_id, lobby_category_id) "
-            "VALUES ($1, $2, $3) "
-            "ON CONFLICT (guild_id, channel_creator_category_id) DO "
-            "UPDATE SET lobby_category_id = $3")
-        await self.pool.execute(query, ctx.guild.id,
-                                creators_category_id, lobby_category_id)
-        await ctx.send("Настройки сохранены")
-
-    @lobby.sub_command()
-    async def channel(self, ctx: disnake.CommandInteraction,
-                      lobby_category: disnake.CategoryChannel, channel: disnake.TextChannel):
+    async def info(self, ctx: disnake.CmdInter,
+                   channels_creators_ids, text_channel: disnake.TextChannel):
         """Указать канал, в который будут отправляться сообщения о созданных лобби
 
         Parameters
         ----------
 
         ctx: command interaction
-        channel: Канал или его ID
-        lobby_category: Категория лобби (НЕ каналов-создателей)
+        text_channel: Текстовый канал, куда будут отправляться сообщения о лобби
+        channels_creators_ids: Голосовые каналы, в которые нужно зайти для создания лобби
         """
-        lobby_category_id = lobby_category.id or int(lobby_category)  # type: ignore
-        channel_id = channel.id or int(channel)  # type: ignore
-        query = ("INSERT INTO lobby_text_channel_ids (guild_id, lobby_category_id, text_channel_id) "
-                 "VALUES ($1, $2, $3) "
-                 "ON CONFLICT (guild_id, lobby_category_id) DO "
-                 "UPDATE SET text_channel_id = $3")
-        await self.pool.execute(query, ctx.guild.id,
-                                lobby_category_id, channel_id)
-        await ctx.send("Настройки сохранены")
+        channel_id = text_channel.id or int(text_channel)  # type: ignore
+        channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
+        channels_creators_ids = map(int, channels_creators_ids)
+        for channel_creator_id in channels_creators_ids:
+            query = ("INSERT INTO lobby_text_channel_ids_v2 (guild_id, channel_creator_id, text_channel_id) "
+                     "VALUES ($1, $2, $3) "
+                     "ON CONFLICT (guild_id, channel_creator_id) DO UPDATE "
+                     "SET text_channel_id = $3")
+            await self.pool.execute(query, ctx.guild.id,
+                                    channel_creator_id, channel_id)
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
-    async def add_roles_for_category(self, ctx: disnake.CmdInter,
-                                     category: disnake.CategoryChannel, role: disnake.Role = None,
-                                     role_needed: bool = None):
+    async def default_name(self, ctx: disnake.CmdInter,
+                           channels_creators_ids, name):
+        """Установить название канала, если нет роли
+
+        Parameters
+        ----------
+
+        ctx: command interaction
+        channels_creators_ids: ID каналов-создателей
+        name: Название для созданного канала
+        """
+        channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
+        channels_creators_ids = map(int, channels_creators_ids)
+        for channel_creator_id in channels_creators_ids:
+            query = ("SELECT role_id "
+                     "FROM lobby_category_rank_roles_v2 "
+                     "WHERE guild_id = $1 and channel_id = $2")
+            role_id = await self.pool.fetchval(query, ctx.guild.id,
+                                               channel_creator_id)
+            role_id = role_id or None
+            query = ("INSERT INTO lobby_category_rank_roles_v2 (guild_id, channel_id, role_id, default_name) "
+                     "VALUES ($1, $2, $3, $4) "
+                     "ON CONFLICT (guild_id, channel_id) DO "
+                     "UPDATE SET default_name = $4")
+            await self.pool.execute(query, ctx.guild.id,
+                                    channel_creator_id, role_id,
+                                    name)
+
+        await ctx.send("Настройки сохранены", ephemeral=True)
+
+    @lobby.sub_command()
+    async def role_not_found_message(self, ctx: disnake.CmdInter,
+                                     channels_creators_ids, message):
+        """Установить название канала, если нет роли
+
+        Parameters
+        ----------
+
+        ctx: command interaction
+        channels_creators_ids: ID каналов-создателей
+        message: Сообщение, которое будет отправлено в канал, если у участника нет нужной роли
+        """
+        channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
+        channels_creators_ids = map(int, channels_creators_ids)
+        for channel_creator_id in channels_creators_ids:
+            query = ("SELECT role_id "
+                     "FROM lobby_category_rank_roles_v2 "
+                     "WHERE guild_id = $1 and channel_id = $2")
+            role_id = await self.pool.fetchval(query, ctx.guild.id,
+                                               channel_creator_id)
+            role_id = role_id or None
+            query = ("INSERT INTO lobby_category_rank_roles_v2 (guild_id, channel_id, role_id, default_name) "
+                     "VALUES ($1, $2, $3, $4) "
+                     "ON CONFLICT (guild_id, channel_id) DO "
+                     "UPDATE SET default_name = $4")
+            await self.pool.execute(query, ctx.guild.id,
+                                    channel_creator_id, role_id,
+                                    message)
+
+        await ctx.send("Настройки сохранены", ephemeral=True)
+
+    @lobby.sub_command()
+    async def add_roles_for_channels_creators(self, ctx: disnake.CmdInter,
+                                              channels_creators_ids, roles_ids=None,
+                                              role_needed: bool = None):
         """Добавить роль, с которой можно зайти в канал
 
         Parameters
         ----------
 
         ctx: command interaction
-        category: Категория с каналами-создателями
-        role: Роль, которую нужно добавить
+        channels_creators_ids: ID каналов-создателей
+        roles_ids: ID ролей, которые нужно добавить
         role_needed: Требуется ли наличие роли для этой категории. Укажите False, если нет
         """
-        category_id = category.id or int(category)  # type: ignore
-        if role:
-            role_id = role.id or int(role)  # type: ignore
-            role_name = role.name or ctx.guild.get_role(role_id).name
-            query = ("INSERT INTO lobby_category_rank_roles (guild_id, category_id, role_id, role_name) "
-                     "VALUES ($1, $2, $3, $4)")
-            await self.pool.execute(query, ctx.guild.id,
-                                    category_id, role_id,
-                                    role_name)
-            query = ("UPDATE lobby_category_rank_roles "
-                     "SET role_needed = $3 "
-                     "WHERE guild_id = $1 and category_id = $2")
-            await self.pool.execute(query, ctx.guild.id,
-                                    category_id, True)
+        channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
+        channels_creators_ids = map(int, channels_creators_ids)
+        if roles_ids:
+            for channel_creator_id in channels_creators_ids:
+                for role_id in roles_ids:
+                    query = ("INSERT INTO lobby_category_rank_roles_v2 (guild_id, channel_id, role_id) "
+                             "VALUES ($1, $2, $3)")
+                    await self.pool.execute(query, ctx.guild.id,
+                                            channel_creator_id, role_id)
+                    query = ("UPDATE lobby_category_rank_roles_v2 "
+                             "SET role_needed = $3 "
+                             "WHERE guild_id = $1 and channel_id = $2")
+                    await self.pool.execute(query, ctx.guild.id,
+                                            channel_creator_id, True)
         if role_needed:
-            query = ("UPDATE lobby_category_rank_roles "
-                     "SET role_needed = $3 "
-                     "WHERE guild_id = $1 and category_id = $2")
-            await self.pool.execute(query, ctx.guild.id,
-                                    category_id, role_needed)
+            for channel_creator_id in channels_creators_ids:
+                query = ("UPDATE lobby_category_rank_roles_v2 "
+                         "SET role_needed = $3 "
+                         "WHERE guild_id = $1 and channel_id = $2")
+                await self.pool.execute(query, ctx.guild.id,
+                                        channel_creator_id, role_needed)
 
-        await ctx.send("Настройки сохранены")
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
     async def remove_roles_for_category(self, ctx: disnake.CmdInter,
-                                        category: disnake.CategoryChannel, role: disnake.Role = None,
+                                        channels_creators_ids, roles_ids=None,
                                         role_needed: bool = None):
         """Удалить роль, с которой можно зайти в канал
 
@@ -620,64 +667,76 @@ class SetupBot(commands.Cog):
         ----------
 
         ctx: command interaction
-        role: Роль, которую нужно удалить
-        category: Категория с каналами-создателями
+        channels_creators_ids: ID каналов-создателей
+        roles_ids: ID ролей
         role_needed: Требуется ли наличие роли для этой категории. Укажите False, если нет
         """
-        category_id = category.id or int(category)  # type: ignore
-        if role:
-            role_id = role.id or int(role)  # type: ignore
-            query = ("DELETE FROM lobby_category_rank_roles "
-                     "WHERE guild_id = $1 and role_id = $2 and category_id = $3")
-            await self.pool.execute(query, ctx.guild.id,
-                                    role_id, category_id)
+        channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
+        channels_creators_ids = map(int, channels_creators_ids)
+        if roles_ids:
+            for channel_creator_id in channels_creators_ids:
+                for role_id in roles_ids:
+                    query = ("DELETE FROM lobby_category_rank_roles_v2 "
+                             "WHERE guild_id = $1 and role_id = $2 and channel_id = $3")
+                    await self.pool.execute(query, ctx.guild.id,
+                                            role_id, channel_creator_id)
         if role_needed:
-            query = ("UPDATE lobby_category_rank_roles "
-                     "SET role_needed = $3 "
-                     "WHERE guild_id = $1 and category_id = $2")
-            await self.pool.execute(query, ctx.guild.id,
-                                    category_id, role_needed)
-        await ctx.send("Настройки сохранены")
+            for channel_creator_id in channels_creators_ids:
+                query = ("UPDATE lobby_category_rank_roles "
+                         "SET role_needed = $3 "
+                         "WHERE guild_id = $1 and channel_id = $2")
+                await self.pool.execute(query, ctx.guild.id,
+                                        channel_creator_id, role_needed)
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
     async def list_roles(self, ctx: disnake.CmdInter,
-                         category: disnake.CategoryChannel, ephemeral: bool = True):
+                         channel: disnake.VoiceChannel, ephemeral: bool = True):
         """Получить список всех ролей с доступом к комнатам рейтинга
 
         Parameters
         ----------
 
         ctx: command interaction
-        category: Категория с каналами-создателями
+        channel: Канал-создатель
         ephemeral: Будет ли сообщение видно всем или только Вам
         """
-        category_id = category.id or int(category)  # type: ignore
+        channel_id = channel.id or int(channel)  # type: ignore
         role_needed_query = ("SELECT role_needed "
-                             "FROM lobby_category_rank_roles "
-                             "WHERE guild_id = $1 and category_id = $2")
+                             "FROM lobby_category_rank_roles_v2 "
+                             "WHERE guild_id = $1 and channel_id = $2")
         is_role_needed = await self.pool.fetchval(role_needed_query, ctx.guild.id,
-                                                  category_id)
+                                                  channel_id)
+        if not is_role_needed:
+            embed = disnake.Embed(title=f"Роли канала {ctx.guild.get_channel(channel_id)}", color=disnake.Color.blurple())
+            embed.add_field(name="", value="Наличие роли не требуется")
+            return await ctx.send(embed=embed, ephemeral=ephemeral)
 
         query = ("SELECT role_id "
                  "FROM lobby_category_rank_roles "
-                 "WHERE guild_id = $1 and category_id = $2")
+                 "WHERE guild_id = $1 and channel_id = $2")
         result = await self.pool.fetch(query, ctx.guild.id,
-                                       category_id)
+                                       channel_id)
         roles_ids = []
         if not result:
-            return await ctx.send("Роли не найдены", ephemeral=ephemeral)
+            embed = disnake.Embed(title=f"Роли канала {ctx.guild.get_channel(channel_id)}", color=disnake.Color.red())
+            embed.add_field(name="", value="Роли не найдены")
+            return await ctx.send(embed=embed, ephemeral=ephemeral)
+
         counter = 1
         for record in result:
             roles_ids.append(f"{counter}) <@&{record["role_id"]}>")
             counter += 1
         embed = (
-            disnake.Embed(title=f"Роли категории {ctx.guild.get_channel(category_id).name}")
+            disnake.Embed(title=f"Роли категории {ctx.guild.get_channel(channel_id).name}")
             .add_field(name="", value="\n".join(roles_ids))
-            .add_field(name="", value=f"Требуется наличие роли: {"Да " if is_role_needed else "Нет"}",
-                       inline=False)
         )
 
         await ctx.send(embed=embed, ephemeral=ephemeral)
+
+    async def channel_name(self, ctx: disnake.CmdInter,
+                           category: disnake.CategoryChannel, name):
+        pass
 
     # endregion
 
@@ -699,7 +758,7 @@ class SetupBot(commands.Cog):
     #                 "UPDATE SET channel_creator_id = $2"
     #         await self.pool.execute(query, ctx.guild.id, int(voice_channel_id))
     #
-    #     await ctx.send("Настройки сохранены")
+    #     await ctx.send("Настройки сохранены", ephemeral=True)
 
     # @set.sub_command()
     # async def create_voice_generator(self, ctx: disnake.CommandInteraction,

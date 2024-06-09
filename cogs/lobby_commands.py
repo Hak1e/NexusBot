@@ -1,8 +1,8 @@
 import disnake
 from disnake.ext import commands
 import asyncpg
-from team_lobby import MembersSelectMenu
-from team_lobby import ChannelActions
+from cogs.team_lobby import MembersSelectMenu
+from cogs.team_lobby import ChannelActions
 from models.author_settings import AuthorSettings
 
 
