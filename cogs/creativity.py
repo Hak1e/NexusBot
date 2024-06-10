@@ -32,7 +32,7 @@ async def send_embed(ctx: disnake.CommandInteraction, bot: commands.InteractionB
     message = await channel.send(embed=embed)
     await message.add_reaction(emoji=like)
     await message.add_reaction(emoji=dislike)
-    await ctx.send(reply_message)
+    await ctx.send(reply_message, ephemeral=True)
 
 
 class Creativity(commands.Cog):
@@ -41,17 +41,14 @@ class Creativity(commands.Cog):
         self.pool = bot.get_pool()
 
     async def load_emoji_reactions(self, ctx):
-        query = "SELECT _like, _dislike " \
-                "FROM emoji_reactions " \
+        query = "SELECT _like, dislike " \
+                "FROM emoji_reaction " \
                 "WHERE guild_id = $1"
         result = await self.pool.fetch(query, ctx.guild.id)
-        if result[0][0] and result[0][1]:
-            like, dislike = result[0]["_like"], result[0]["_dislike"]
-            return like, dislike
-        else:
-            error_message = "Ошибка загрузки реакций. Необходима настройка"
-            await ctx.send(error_message, ephemeral=True)
-            raise DataBaseFetchError(error_message)
+        if not result:
+            return await ctx.send("Ошибка загрузки реакций", ephemeral=True)
+        like, dislike = result[0]["_like"], result[0]["dislike"]
+        return like, dislike
 
     @commands.slash_command()
     async def art(self, ctx: disnake.CommandInteraction,
@@ -67,8 +64,8 @@ class Creativity(commands.Cog):
         comment: Комментарий к арту
         """
 
-        query = "SELECT art_channel_id " \
-                "FROM text_channels " \
+        query = "SELECT id " \
+                "FROM art_channel " \
                 "WHERE guild_id = $1"
         art_channel_id = await self.pool.fetchval(query, ctx.guild.id)
         if not art_channel_id:
@@ -101,7 +98,9 @@ class Creativity(commands.Cog):
         comment: Комментарий к мему
         """
 
-        query = "SELECT meme_channel_id FROM text_channels WHERE guild_id = $1"
+        query = ("SELECT id "
+                 "FROM meme_channel "
+                 "WHERE guild_id = $1")
         meme_channel_id = await self.pool.fetchval(query, ctx.guild.id)
         if not meme_channel_id:
             await ctx.send("Не найден канал для мемов", ephemeral=True)

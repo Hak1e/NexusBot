@@ -469,10 +469,10 @@ class SetupBot(commands.Cog):
         like: Реакция лайка
         dislike: Реакция дизлайка
         """
-        query = "INSERT INTO emoji_reactions (guild_id, _like, _dislike)" \
+        query = "INSERT INTO emoji_reaction (guild_id, _like, dislike)" \
                 "VALUES ($1, $2, $3)" \
                 "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET _like = $2, _dislike = $3"
+                "UPDATE SET _like = $2, dislike = $3"
         await self.pool.execute(query, ctx.guild.id, like, dislike)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
@@ -486,11 +486,12 @@ class SetupBot(commands.Cog):
         ctx: command interaction
         channel: Канал для артов
         """
-        query = "INSERT INTO text_channels (guild_id, art_channel_id)" \
+        query = "INSERT INTO art_channel (id, guild_id)" \
                 "VALUES ($1, $2)" \
-                "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET art_channel_id = $2"
-        await self.pool.execute(query, ctx.guild.id, channel.id)
+                "ON CONFLICT (id) DO " \
+                "UPDATE SET id = $1"
+        await self.pool.execute(query, channel.id,
+                                ctx.guild.id)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @creativity.sub_command()
@@ -503,11 +504,12 @@ class SetupBot(commands.Cog):
         ctx: command interaction
         channel: Канал для мемов
         """
-        query = "INSERT INTO text_channels (guild_id, meme_channel_id)" \
+        query = "INSERT INTO meme_channel (id, guild_id)" \
                 "VALUES ($1, $2)" \
-                "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET meme_channel_id = $2"
-        await self.pool.execute(query, ctx.guild.id, channel.id)
+                "ON CONFLICT (id) DO " \
+                "UPDATE SET id = $1"
+        await self.pool.execute(query, channel.id,
+                                ctx.guild.id)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     # endregion
@@ -517,6 +519,31 @@ class SetupBot(commands.Cog):
     async def lobby(self, ctx):
         """Настроить создание лобби-каналов"""
         pass
+
+    @lobby.sub_command()
+    async def channel_prefix(self, ctx: disnake.CmdInter,
+                             channels_creators_ids, with_role,
+                             without_role):
+        """Поставить префикс для создаваемых каналов
+
+        Parameters
+        ----------
+        ctx: command interaction
+        channels_creators_ids: ID каналов, в которые нужно зайти для создания лобби
+        with_role: Префикс для каналов, требующих наличие роли
+        without_role: Префикс для каналов, не требующих наличие роли
+        """
+        channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
+        channels_creators_ids = map(int, channels_creators_ids)
+        for channel_creator_id in channels_creators_ids:
+            query = ("INSERT INTO lobby_voice_channel_creator_settings (id, channel_with_role_prefix, channel_without_role_prefix) "
+                     "VALUES ($1, $2, $3) "
+                     "ON CONFLICT (id) DO UPDATE "
+                     "SET channel_with_role_prefix = $2, channel_without_role_prefix = $3")
+            await self.pool.execute(query, channel_creator_id,
+                                    with_role, without_role)
+
+        await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
     async def creators(self, ctx: disnake.CmdInter,

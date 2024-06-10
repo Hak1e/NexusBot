@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS goodbye_channel (
     guild_id BIGINT REFERENCES guild(id)
 );
 
+drop table creativity_footer_text cascade;
 CREATE TABLE IF NOT EXISTS creativity_footer_text (
     guild_id BIGINT REFERENCES guild(id) PRIMARY KEY,
     text TEXT
@@ -52,7 +53,7 @@ CREATE TABLE IF NOT EXISTS meme_channel (
 
 CREATE TABLE IF NOT EXISTS emoji_reaction (
     guild_id BIGINT REFERENCES guild(id) PRIMARY KEY,
-    "like" TEXT,
+    _like TEXT,
     dislike TEXT
 );
 
@@ -84,7 +85,7 @@ CREATE TABLE IF NOT EXISTS user_role (
 );
 
 CREATE TABLE IF NOT EXISTS bot_author (
-    user_id BIGINT UNIQUE REFERENCES guild_member(id)
+    user_id BIGINT PRIMARY KEY
 );
 
 -- CREATE TABLE IF NOT EXISTS error_logs_channel (
@@ -94,16 +95,18 @@ CREATE TABLE IF NOT EXISTS bot_author (
 
 
 -- region Lobbies
-
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_settings (
     id BIGINT PRIMARY KEY,
     guild_id BIGINT REFERENCES guild(id),
     category_id_for_new_channel BIGINT,
     user_limit INT,
     custom BOOLEAN DEFAULT FALSE,
-    role_needed BOOL DEFAULT FALSE,
+    role_needed BOOLEAN DEFAULT FALSE,
+    log_needed BOOLEAN DEFAULT FALSE,
     default_name TEXT,
-    role_not_found_message TEXT
+    role_not_found_message TEXT,
+    channel_with_role_prefix TEXT,
+    channel_without_role_prefix TEXT
 );
 
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_role (
@@ -112,7 +115,6 @@ CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_role (
     guild_id BIGINT REFERENCES guild(id)
 );
 
-drop table lobby_voice_channel_settings cascade;
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_settings (
     user_id BIGINT REFERENCES guild_member(id),
     guild_id BIGINT REFERENCES guild(id),

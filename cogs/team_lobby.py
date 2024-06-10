@@ -7,6 +7,7 @@ from constants import MAX_ITEMS_IN_MENU, MAX_SELECT_MENUS
 import enum
 import json
 from models.room_author_settings import AuthorSettings
+from models.sync_member_in_db import register_member_in_guild
 
 
 class ChannelActions(str, enum.Enum):
@@ -22,6 +23,11 @@ class RequestedRole(str, enum.Enum):
     not_found = "not_found"
     not_needed = "not_needed"
     missing = "missing"
+
+
+class LobbyInfoChannel(str, enum.Enum):
+    not_found = "not_found"
+    not_needed = "not_needed"
 
 
 class MembersSelectMenu(disnake.ui.Select):
@@ -424,6 +430,12 @@ class Lobby(commands.Cog):
 
     # endregion
 
+    async def log_needed(self, voice_channel_id):
+        query = ("SELECT log_needed "
+                 "FROM lobby_voice_channel_creator_settings "
+                 "WHERE id = $1")
+        return await self.pool.fetchval(query, int(voice_channel_id))
+
     async def save_sent_lobby_info_to_db(self, voice_channel,
                                          message, text_channel_id):
         query = ("INSERT INTO lobby_message (id, voice_channel_id, text_channel_id)"
@@ -485,13 +497,30 @@ class Lobby(commands.Cog):
             return voice_channel
         else:
             if isinstance(required_role, disnake.Role):
-                voice_channel_name = f"【🏆】{required_role.name}"
+                query = ("SELECT channel_with_role_prefix "
+                         "FROM lobby_voice_channel_creator_settings "
+                         "WHERE id = $1")
+                prefix = await self.pool.fetchval(query, voice_creator.id)
+                if prefix:
+                    voice_channel_name = f"{prefix}{required_role.name}"
+                else:
+                    voice_channel_name = f"【🏆】{required_role.name}"
             else:
                 query = ("SELECT default_name "
                          "FROM lobby_voice_channel_creator_settings "
                          "WHERE id = $1")
                 default_channel_name = await self.pool.fetchval(query, voice_creator.id)
-                voice_channel_name = default_channel_name or f"【🎮】{category.name}"
+                query = ("SELECT channel_without_role_prefix "
+                         "FROM lobby_voice_channel_creator_settings "
+                         "WHERE id = $1")
+                prefix = await self.pool.fetchval(query, voice_creator.id)
+                voice_channel_name = ""
+                if prefix:
+                    voice_channel_name += prefix
+                if default_channel_name:
+                    voice_channel_name += default_channel_name
+                else:
+                    voice_channel_name += f"【🎮】{category.name}"
 
             voice_channel = await member.guild.create_voice_channel(name=voice_channel_name, category=category,
                                                                     overwrites=overwrites, user_limit=user_limit)
@@ -550,18 +579,18 @@ class Lobby(commands.Cog):
             print(f"Current channel {current.channel.name}")
             query = ("SELECT id, custom "
                      "FROM lobby_voice_channel_creator_settings "
-                     "WHERE id = $1 and guild_id = $2")
-            is_voice_creator = await self.pool.fetchrow(query, current.channel.id,
-                                                        guild_id)
+                     "WHERE id = $1")
+            is_voice_creator = await self.pool.fetchrow(query, current.channel.id)
             if is_voice_creator:
                 voice_creator_id, custom = is_voice_creator
                 if voice_creator_id:
+                    await register_member_in_guild(self.pool, member.id,
+                                                   guild_id)
                     print("Voice creator")
                     query = ("SELECT category_id_for_new_channel "
                              "FROM lobby_voice_channel_creator_settings "
-                             "WHERE id = $1 and guild_id = $2")
-                    lobby_category_id = await self.pool.fetchval(query, current.channel.id,
-                                                                 guild_id)
+                             "WHERE id = $1")
+                    lobby_category_id = await self.pool.fetchval(query, current.channel.id)
                     if not lobby_category_id:
                         logging.error(f"Категория для создания каналов не найдена в базе данных")
                         return
@@ -597,10 +626,9 @@ class Lobby(commands.Cog):
                     else:
                         required_role = await self.get_channel_required_role(member, current.channel.id)
                         query = ("SELECT user_limit "
-                                 "FROM lobby_voice_channel_settings "
-                                 "WHERE user_id = $1 and guild_id = $2")
-                        user_limit = await self.pool.fetchval(query, member.id,
-                                                              guild_id)
+                                 "FROM lobby_voice_channel_creator_settings "
+                                 "WHERE id = $1")
+                        user_limit = await self.pool.fetchval(query, voice_creator_id)
                         voice_channel = await self.create_voice_channel(member=member, category=category,
                                                                         overwrites=temp_overwrites,
                                                                         user_limit=user_limit,
@@ -635,13 +663,13 @@ class Lobby(commands.Cog):
 
                             text_channel_id = await self.get_text_channel_id(channel_creator, voice_creator=True)
                             text_channel = member.guild.get_channel(text_channel_id)
-                            if not text_channel:
-                                await voice_channel.edit(overwrites=overwrites)
+                            lobby_log_needed = await self.log_needed(channel_creator.id)
+                            await voice_channel.edit(overwrites=overwrites)
+                            if lobby_log_needed and not text_channel:
                                 await voice_channel.send(f"{member.mention}, "
                                                          f"Оповещение о создании комнаты не было создано из-за неверных "
                                                          f"настроек. Обратитесь к администратору за помощью")
-                            else:
-                                await voice_channel.edit(overwrites=overwrites)
+                            elif text_channel:
                                 lobby_info_message = await text_channel.send(embed=embed)
                                 await self.save_sent_lobby_info_to_db(voice_channel, lobby_info_message,
                                                                       text_channel.id)

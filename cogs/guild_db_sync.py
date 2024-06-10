@@ -16,7 +16,7 @@ class GuildSync(commands.Cog):
     async def member(self, ctx):
         pass
 
-    @member.slash_command()
+    @member.sub_command()
     async def roles(self, ctx: disnake.CmdInter,
                     value: bool):
         """Включить/отключить восстановление ролей для перезашедших участников
@@ -40,7 +40,7 @@ class GuildSync(commands.Cog):
             await self.pool.execute(query, ctx.guild.id)
             return await ctx.send("Восстановление ролей для перезашедших участников отключено", ephemeral=True)
 
-    @member.slash_command()
+    @member.sub_command()
     async def name(self, ctx: disnake.CmdInter,
                    value: bool):
         """Включить/отключить восстановление никнейма для перезашедших участников

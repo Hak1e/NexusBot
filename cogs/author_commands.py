@@ -14,7 +14,7 @@ class AuthorCommands(commands.Cog):
         bot_author_ids = await self.pool.fetch(query, member_id)
         if not bot_author_ids:
             return
-        bot_author_ids = [bot_author_id["bot_author_id"] for bot_author_id in bot_author_ids]
+        bot_author_ids = [bot_author_id["user_id"] for bot_author_id in bot_author_ids]
         return bot_author_ids
 
     @commands.slash_command()  # Говорящее название команды скрыто специально
@@ -75,13 +75,15 @@ class AuthorCommands(commands.Cog):
         bot_author_ids = await self.get_bot_author(ctx.author.id)
         if ctx.author.id not in bot_author_ids:
             return await ctx.send("Вы не можете использовать эту команду", ephemeral=True)
-        guilds = await self.bot.fetch_guilds()
+        guilds = await self.bot.fetch_guilds().flatten()
         for guild in guilds:
+            guild = await self.bot.fetch_guild(guild.id)
             query = ("INSERT INTO guild (id, owner_id) "
                      "VALUES ($1, $2)"
                      "ON CONFLICT (id) DO NOTHING")
             await self.pool.execute(query, guild.id,
                                     guild.owner_id)
+        await ctx.send(f"Серверы успешно синхронизированы", ephemeral=True)
 
 
 def setup(bot):
