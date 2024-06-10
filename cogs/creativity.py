@@ -85,7 +85,7 @@ class Creativity(commands.Cog):
                          title="Новый арт!", image_url=image_url,
                          description=description, channel_id=art_channel_id,
                          reply_message="Арт успешно опубликован", like=like,
-                         dislike=dislike)
+                         dislike=dislike, pool=self.pool)
 
     @commands.slash_command()
     async def meme(self, ctx: disnake.CommandInteraction,
@@ -118,7 +118,7 @@ class Creativity(commands.Cog):
                          image_url=image_url,
                          description=description, channel_id=meme_channel_id,
                          reply_message="Мем успешно опубликован", like=like,
-                         dislike=dislike)
+                         dislike=dislike, pool=self.pool)
 
 
 def setup(bot):
