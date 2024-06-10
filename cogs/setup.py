@@ -151,13 +151,30 @@ class SetupBot(commands.Cog):
         pass
 
     @set.sub_command()
+    async def creativity_footer(self, ctx: disnake.CmdInter,
+                                text):
+        """Указать текст внизу ембед-сообщения
+
+        Parameters
+        ----------
+        ctx: command interaction
+        text: Текст внизу ембед-сообщения
+        """
+        query = ("INSERT INTO creativity_footer_text (guild_id, text)"
+                 "VALUES ($1, $2)"
+                 "ON CONFLICT (guild_id) DO UPDATE "
+                 "SET text = $2")
+        await self.pool.execute(query, ctx.guild.id,
+                                text)
+        await ctx.send("Настройки сохранены", ephemeral=True)
+
+    @set.sub_command()
     async def error_logs_channel(self, ctx: disnake.CmdInter,
                                  channel: disnake.TextChannel):
         """Указать канал, в который будет отправляться ошибка. Доступно только создателю
 
         Parameters
         ----------
-
         ctx: command interaction
         channel: ID канала
         """
@@ -351,7 +368,6 @@ class SetupBot(commands.Cog):
 
         Parameters
         ----------
-
         ctx: command interaction
         question_button: Кнопка "Вопрос"
         report_button: Кнопка "Жалоба"

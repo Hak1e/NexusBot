@@ -9,20 +9,24 @@ async def send_embed(ctx: disnake.CommandInteraction, bot: commands.InteractionB
                      image_url, description,
                      channel_id, reply_message,
                      like, dislike,
-                     title=None):
+                     pool, title=None):
     channel = bot.get_channel(channel_id)
 
     if channel is None:
-        await ctx.send("Не удалось найти канал для отправки. Запустите команду `/setup`")
+        await ctx.send("Не удалось найти канал для отправки", ephemeral=True)
         return
 
+    query = ("SELECT text "
+             "FROM creativity_footer_text "
+             "WHERE guild_id = $1")
+    footer_text = await pool.fetchval(query, ctx.guild.id)
     embed = (
         disnake.Embed(
             title=title if title else None,
             description=description,
             color=0x3f8fdf
         )
-        .set_footer(text="Для доступа к каналу напишите machuku")
+        .set_footer(text=footer_text if footer_text else "")
         .set_image(url=image_url)
     )
     message = await channel.send(embed=embed)
