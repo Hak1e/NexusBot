@@ -34,6 +34,12 @@ CREATE TABLE IF NOT EXISTS goodbye_channel (
     guild_id BIGINT REFERENCES guild(id)
 );
 
+CREATE TABLE IF NOT EXISTS creativity_footer_text (
+    guild_id BIGINT REFERENCES guild(id) PRIMARY KEY,
+    text TEXT
+);
+
+
 CREATE TABLE IF NOT EXISTS art_channel (
     id BIGINT PRIMARY KEY,
     guild_id BIGINT REFERENCES guild(id)
@@ -94,27 +100,27 @@ CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_settings (
     guild_id BIGINT REFERENCES guild(id),
     category_id_for_new_channel BIGINT,
     user_limit INT,
-    custom BOOLEAN DEFAULT FALSE
+    custom BOOLEAN DEFAULT FALSE,
+    role_needed BOOL DEFAULT FALSE,
+    default_name TEXT,
+    role_not_found_message TEXT
 );
 
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_role (
     voice_channel_id BIGINT REFERENCES lobby_voice_channel_creator_settings(id),
     role_id BIGINT REFERENCES role(id),
-    guild_id BIGINT REFERENCES guild(id),
-    role_needed BOOL DEFAULT FALSE,
-    default_name TEXT,
-    role_not_found_message TEXT,
-    PRIMARY KEY (voice_channel_id, role_id)
+    guild_id BIGINT REFERENCES guild(id)
 );
 
+drop table lobby_voice_channel_settings cascade;
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_settings (
-    guild_id BIGINT REFERENCES guild(id),
     user_id BIGINT REFERENCES guild_member(id),
+    guild_id BIGINT REFERENCES guild(id),
     channel_name TEXT,
     bitrate INT,
     user_limit INT,
     channel_overwrites JSON,
-    PRIMARY KEY (guild_id, user_id)
+    PRIMARY KEY (user_id, guild_id)
 );
 
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_author (
