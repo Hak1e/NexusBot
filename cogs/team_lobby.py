@@ -61,6 +61,7 @@ class MembersSelectMenu(disnake.ui.Select):
 class BaseDashboardButtons(disnake.ui.View):
     def __init__(self, pool,
                  bot):
+        self.bot = bot
         self.pool = pool
         super().__init__(timeout=300)
         self.author_settings = AuthorSettings(bot)
@@ -72,7 +73,8 @@ class BaseDashboardButtons(disnake.ui.View):
                                          members, action=ChannelActions.kick):
         menus = []
         for position in range(0, len(members), MAX_ITEMS_IN_MENU):
-            menu = MembersSelectMenu(members[position:position + MAX_ITEMS_IN_MENU], action=action, pool=self.pool)
+            menu = MembersSelectMenu(members[position:position + MAX_ITEMS_IN_MENU], action=action,
+                                     pool=self.pool, bot=self.bot)
             menus.append(menu)
 
         view = disnake.ui.View()
@@ -215,7 +217,7 @@ class CustomChannelDashboardButtons(BaseDashboardButtons):
             return
         modal_window = ModalWindow(ctx, self.pool,
                                    "Название канала", "Введите новое название канала",
-                                   ChannelActions.edit_name)
+                                   ChannelActions.edit_name, self.bot)
         await ctx.response.send_modal(modal_window)
 
     @disnake.ui.button(label="Битрейт", style=disnake.ButtonStyle.blurple)
@@ -225,7 +227,7 @@ class CustomChannelDashboardButtons(BaseDashboardButtons):
             return
         modal_window = ModalWindow(ctx, self.pool,
                                    f"8 - {int(ctx.guild.bitrate_limit / 1000)}", "Введите битрейт канала",
-                                   ChannelActions.edit_bitrate)
+                                   ChannelActions.edit_bitrate, self.bot)
         await ctx.response.send_modal(modal_window)
         assert isinstance(ctx.channel, disnake.VoiceChannel)
         await self.author_settings.update_voice_channel_overwrites(ctx.channel)
@@ -237,7 +239,7 @@ class CustomChannelDashboardButtons(BaseDashboardButtons):
             return
         modal_window = ModalWindow(ctx, self.pool,
                                    "0 - 99", "Введите лимит участников",
-                                   ChannelActions.edit_user_limit)
+                                   ChannelActions.edit_user_limit, self.bot)
         await ctx.response.send_modal(modal_window)
         assert isinstance(ctx.channel, disnake.VoiceChannel)
         await self.author_settings.update_voice_channel_overwrites(ctx.channel)
@@ -277,25 +279,25 @@ class Lobby(commands.Cog):
     async def get_text_channel_id(self, voice_channel,
                                   voice_creator=False):
         if voice_creator:
-            query = ("SELECT text_channel_id "
-                     "FROM lobby_text_channel_ids_v2 "
-                     "WHERE guild_id = $1 and channel_creator_id = $2")
-            text_channel_id = await self.pool.fetchval(query, voice_channel.guild.id,
-                                                       voice_channel.id)
+            query = ("SELECT id "
+                     "FROM lobby_text_channel "
+                     "WHERE voice_channel_creator_id = $1 and guild_id = $2")
+            text_channel_id = await self.pool.fetchval(query, voice_channel.id,
+                                                       voice_channel.guild.id)
         else:
             query = ("SELECT text_channel_id "
-                     "FROM lobby_messages_v2 "
-                     "WHERE guild_id = $1 and voice_channel_id = $2")
-            text_channel_id = await self.pool.fetchval(query, voice_channel.guild.id,
-                                                       voice_channel.id)
+                     "FROM lobby_message "
+                     "WHERE voice_channel_id = $1 and guild_id = $2")
+            text_channel_id = await self.pool.fetchval(query, voice_channel.id,
+                                                       voice_channel.guild.id)
         return text_channel_id
 
     async def get_lobby_message_id(self, voice_channel):
-        query = ("SELECT message_id "
-                 "FROM lobby_messages_v2 "
-                 "WHERE guild_id = $1 and voice_channel_id = $2")
-        message_id = await self.pool.fetchval(query, voice_channel.guild.id,
-                                              voice_channel.id)
+        query = ("SELECT id "
+                 "FROM lobby_message "
+                 "WHERE voice_channel_id = $1 and guild_id = $2")
+        message_id = await self.pool.fetchval(query, voice_channel.id,
+                                              voice_channel.guild.id)
         return message_id
 
     async def get_lobby_info_message(self, voice_channel):
@@ -335,7 +337,7 @@ class Lobby(commands.Cog):
     async def get_custom_channel_settings(self, guild_id,
                                           member):
         query = ("SELECT channel_name, bitrate, user_limit "
-                 "FROM lobby_custom_voice "
+                 "FROM lobby_voice_channel_settings "
                  "WHERE guild_id = $1 and user_id = $2")
         result = await self.pool.fetchrow(query, guild_id,
                                           member.id)
@@ -351,10 +353,10 @@ class Lobby(commands.Cog):
 
     async def get_voice_channel_author_id(self, voice_channel):
         get_channel_author_id = "SELECT user_id " \
-                                "FROM lobby_channel_author " \
-                                "WHERE guild_id = $1 and channel_id = $2"
-        channel_author_id = await self.pool.fetchval(get_channel_author_id, voice_channel.guild.id,
-                                                     voice_channel.id)
+                                "FROM lobby_voice_channel_author " \
+                                "WHERE voice_channel_id = $1 and guild_id = $2"
+        channel_author_id = await self.pool.fetchval(get_channel_author_id, voice_channel.id,
+                                                     voice_channel.guild.id)
         return channel_author_id
 
     async def get_channel_overwrites(self, category,
@@ -364,7 +366,7 @@ class Lobby(commands.Cog):
         member_overwrite = disnake.PermissionOverwrite(view_channel=True, connect=True,
                                                        move_members=True)
         query = ("SELECT channel_overwrites "
-                 "FROM lobby_custom_voice "
+                 "FROM lobby_voice_channel_settings "
                  "WHERE guild_id = $1 and user_id = $2")
         channel_overwrites = await self.pool.fetchval(query, member.guild.id,
                                                       member.id)
@@ -391,18 +393,17 @@ class Lobby(commands.Cog):
     async def get_channel_required_role(self, member,
                                         channel_id):
         query = ("SELECT role_needed "
-                 "FROM lobby_category_rank_roles_v2 "
-                 "WHERE guild_id = $1 and channel_id = $2")
-        role_required = await self.pool.fetchval(query, member.guild.id,
-                                                 channel_id)
+                 "FROM lobby_voice_channel_creator_settings "
+                 "WHERE id = $1")
+        role_required = await self.pool.fetchval(query, channel_id)
         if not role_required:
             return RequestedRole.not_needed
 
         get_role_required_query = ("SELECT role_id "
-                                   "FROM lobby_category_rank_roles_v2 "
-                                   "WHERE guild_id = $1 and channel_id = $2")
-        result = await self.pool.fetch(get_role_required_query, member.guild.id,
-                                       channel_id)
+                                   "FROM lobby_voice_channel_creator_role "
+                                   "WHERE voice_channel_id = $1 and guild_id = $2")
+        result = await self.pool.fetch(get_role_required_query, channel_id,
+                                       member.guild.id)
         required_roles_ids = []
         if result:
             for record in result:
@@ -425,17 +426,15 @@ class Lobby(commands.Cog):
 
     async def save_sent_lobby_info_to_db(self, voice_channel,
                                          message, text_channel_id):
-        query = ("INSERT INTO lobby_messages_v2 (guild_id, voice_channel_id, message_id, text_channel_id)"
-                 "VALUES ($1, $2, $3, $4)")
-        await self.pool.execute(query, voice_channel.guild.id,
-                                voice_channel.id, message.id,
-                                text_channel_id)
+        query = ("INSERT INTO lobby_message (id, voice_channel_id, text_channel_id)"
+                 "VALUES ($1, $2, $3)")
+        await self.pool.execute(query, message.id,
+                                voice_channel.id, text_channel_id)
 
     async def delete_sent_lobby_info_from_db(self, voice_channel):
-        query = ("DELETE FROM lobby_messages_v2 "
-                 "WHERE guild_id = $1 and voice_channel_id = $2")
-        await self.pool.execute(query, voice_channel.guild.id,
-                                voice_channel.id)
+        query = ("DELETE FROM lobby_message "
+                 "WHERE voice_channel_id = $1")
+        await self.pool.execute(query, voice_channel.id)
 
     @staticmethod
     async def update_lobby_info_message(message, voice_channel):
@@ -462,16 +461,15 @@ class Lobby(commands.Cog):
 
     async def set_voice_channel_author_id(self, member,
                                           voice_channel):
-        query = ("INSERT INTO lobby_channel_author(channel_id, guild_id, user_id) "
+        query = ("INSERT INTO lobby_voice_channel_author(voice_channel_id, guild_id, user_id) "
                  "VALUES ($1, $2, $3)")
         await self.pool.execute(query, voice_channel.id,
                                 voice_channel.guild.id, member.id)
 
     async def delete_voice_channel_author_id(self, voice_channel):
-        query = ("DELETE FROM lobby_channel_author "
-                 "WHERE guild_id = $1 and channel_id = $2")
-        await self.pool.execute(query, voice_channel.guild.id,
-                                voice_channel.id)
+        query = ("DELETE FROM lobby_voice_channel_author "
+                 "WHERE voice_channel_id = $1")
+        await self.pool.execute(query, voice_channel.id)
 
     async def create_voice_channel(self, member,
                                    category, overwrites,
@@ -490,10 +488,9 @@ class Lobby(commands.Cog):
                 voice_channel_name = f"【🏆】{required_role.name}"
             else:
                 query = ("SELECT default_name "
-                         "FROM lobby_category_rank_roles_v2 "
-                         "WHERE guild_id = $1 and channel_id = $2")
-                default_channel_name = await self.pool.fetchval(query, member.guild.id,
-                                                                voice_creator.id)
+                         "FROM lobby_voice_channel_creator_settings "
+                         "WHERE id = $1")
+                default_channel_name = await self.pool.fetchval(query, voice_creator.id)
                 voice_channel_name = default_channel_name or f"【🎮】{category.name}"
 
             voice_channel = await member.guild.create_voice_channel(name=voice_channel_name, category=category,
@@ -502,7 +499,7 @@ class Lobby(commands.Cog):
 
     async def is_lobby_category(self, channel):
         query = ("SELECT category_id_for_new_channel "
-                 "FROM lobby_voice_creators_v2 "
+                 "FROM lobby_voice_channel_creator_settings "
                  "WHERE guild_id = $1 and category_id_for_new_channel = $2")
         lobby_category_id = await self.pool.fetchval(query, channel.guild.id,
                                                      channel.category.id)
@@ -525,7 +522,7 @@ class Lobby(commands.Cog):
                 if not before.channel.members:
                     await before.channel.edit(overwrites=temp_overwrites)
                     query = ("SELECT custom "
-                             "FROM lobby_voice_creators_v2 "
+                             "FROM lobby_voice_channel_creator_settings "
                              "WHERE guild_id = $1 and category_id_for_new_channel = $2")
                     custom = await self.pool.fetchval(query, before.channel.guild.id,
                                                       before.channel.category.id)
@@ -551,20 +548,20 @@ class Lobby(commands.Cog):
 
         if current.channel:
             print(f"Current channel {current.channel.name}")
-            query = ("SELECT channel_id, custom "
-                     "FROM lobby_voice_creators_v2 "
-                     "WHERE guild_id = $1 and channel_id = $2")
-            is_voice_creator = await self.pool.fetchrow(query, guild_id,
-                                                        current.channel.id)
+            query = ("SELECT id, custom "
+                     "FROM lobby_voice_channel_creator_settings "
+                     "WHERE id = $1 and guild_id = $2")
+            is_voice_creator = await self.pool.fetchrow(query, current.channel.id,
+                                                        guild_id)
             if is_voice_creator:
                 voice_creator_id, custom = is_voice_creator
                 if voice_creator_id:
                     print("Voice creator")
                     query = ("SELECT category_id_for_new_channel "
-                             "FROM lobby_voice_creators_v2 "
-                             "WHERE guild_id = $1 and channel_id = $2")
-                    lobby_category_id = await self.pool.fetchval(query, guild_id,
-                                                                 current.channel.id)
+                             "FROM lobby_voice_channel_creator_settings "
+                             "WHERE id = $1 and guild_id = $2")
+                    lobby_category_id = await self.pool.fetchval(query, current.channel.id,
+                                                                 guild_id)
                     if not lobby_category_id:
                         logging.error(f"Категория для создания каналов не найдена в базе данных")
                         return
@@ -595,14 +592,15 @@ class Lobby(commands.Cog):
                         await asyncio.sleep(1)
                         if voice_channel.members:
                             await self.set_voice_channel_author_id(member, voice_channel)
-                            buttons = CustomChannelDashboardButtons(self.pool)
+                            buttons = CustomChannelDashboardButtons(self.pool, self.bot)
                             await voice_channel.send(embed=hello_embed, view=buttons)
                     else:
                         required_role = await self.get_channel_required_role(member, current.channel.id)
                         query = ("SELECT user_limit "
-                                 "FROM lobby_voice_creators_v2 "
-                                 "WHERE guild_id = $1 and channel_id = $2")
-                        user_limit = await self.pool.fetchval(query, guild_id, current.channel.id)
+                                 "FROM lobby_voice_channel_settings "
+                                 "WHERE user_id = $1 and guild_id = $2")
+                        user_limit = await self.pool.fetchval(query, member.id,
+                                                              guild_id)
                         voice_channel = await self.create_voice_channel(member=member, category=category,
                                                                         overwrites=temp_overwrites,
                                                                         user_limit=user_limit,
@@ -622,10 +620,9 @@ class Lobby(commands.Cog):
                             await self.set_voice_channel_author_id(member, voice_channel)
                             if required_role == RequestedRole.missing:
                                 query = ("SELECT role_not_found_message "
-                                         "FROM lobby_category_rank_roles "
-                                         "WHERE guild_id = $1 and category_id = $2")
-                                role_not_found_message = await self.pool.fetchval(query, member.guild.id,
-                                                                                  category.id)
+                                         "FROM lobby_voice_channel_creator_settings "
+                                         "WHERE id = $1")
+                                role_not_found_message = await self.pool.fetchval(query, voice_creator_id)
                                 default_error_message = (
                                     f"{member.mention}, у Вас не была найдена подходящая роль для данной категории.\n"
                                     f"Пожалуйста, выберите подходящую роль в разделе <id:customize> или в канале с "
@@ -648,7 +645,7 @@ class Lobby(commands.Cog):
                                 lobby_info_message = await text_channel.send(embed=embed)
                                 await self.save_sent_lobby_info_to_db(voice_channel, lobby_info_message,
                                                                       text_channel.id)
-                            buttons = BaseDashboardButtons(self.pool)
+                            buttons = BaseDashboardButtons(self.pool, self.bot)
                             await voice_channel.send(embed=hello_embed, view=buttons)
                     if voice_channel and not voice_channel.members:
                         print("[3] Пользователя нет в голосовом канале. Канал будет удалён")
