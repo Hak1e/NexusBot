@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS guild_member (
     PRIMARY KEY (id, guild_id)
 );
 
-CREATE TABLE IF NOT EXISTS role (
+CREATE TABLE IF NOT EXISTS guild_restore_role (
     id BIGINT PRIMARY KEY,
     guild_id BIGINT REFERENCES guild(id),
     name TEXT
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS role (
 CREATE TABLE IF NOT EXISTS member_role (
     member_id BIGINT REFERENCES guild_member(id),
     guild_id BIGINT REFERENCES guild(id),
-    role_id BIGINT REFERENCES role(id),
+    role_id BIGINT REFERENCES guild_restore_role(id),
     PRIMARY KEY (member_id, guild_id, role_id)
 );
 
@@ -34,7 +34,6 @@ CREATE TABLE IF NOT EXISTS goodbye_channel (
     guild_id BIGINT REFERENCES guild(id)
 );
 
-drop table creativity_footer_text cascade;
 CREATE TABLE IF NOT EXISTS creativity_footer_text (
     guild_id BIGINT REFERENCES guild(id) PRIMARY KEY,
     text TEXT
@@ -59,14 +58,14 @@ CREATE TABLE IF NOT EXISTS emoji_reaction (
 
 CREATE TABLE IF NOT EXISTS tournament_blacklist (
     guild_id BIGINT REFERENCES guild(id),
-    user_id BIGINT REFERENCES guild_member(id),
+    user_id BIGINT,
     reason TEXT,
     PRIMARY KEY (guild_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS journal (
     guild_id BIGINT REFERENCES guild(id),
-    user_id BIGINT REFERENCES guild_member(id),
+    user_id BIGINT,
     notes TEXT[],
     PRIMARY KEY (guild_id, user_id)
 );
@@ -76,14 +75,7 @@ CREATE TABLE IF NOT EXISTS journal_log_channel (
     guild_id BIGINT REFERENCES guild(id)
 );
 
-
-CREATE TABLE IF NOT EXISTS user_role (
-    user_id BIGINT REFERENCES guild_member(id),
-    guild_id BIGINT REFERENCES guild(id),
-    role_id BIGINT REFERENCES role(id),
-    PRIMARY KEY (user_id, guild_id, role_id)
-);
-
+insert into bot_author (user_id) values (389787190986670082);
 CREATE TABLE IF NOT EXISTS bot_author (
     user_id BIGINT PRIMARY KEY
 );
@@ -97,11 +89,11 @@ CREATE TABLE IF NOT EXISTS bot_author (
 -- region Lobbies
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_settings (
     id BIGINT PRIMARY KEY,
-    guild_id BIGINT REFERENCES guild(id),
     category_id_for_new_channel BIGINT,
     user_limit INT,
     custom BOOLEAN DEFAULT FALSE,
     role_needed BOOLEAN DEFAULT FALSE,
+    text_channel_id BIGINT,
     log_needed BOOLEAN DEFAULT FALSE,
     default_name TEXT,
     role_not_found_message TEXT,
@@ -111,12 +103,12 @@ CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_settings (
 
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_role (
     voice_channel_id BIGINT REFERENCES lobby_voice_channel_creator_settings(id),
-    role_id BIGINT REFERENCES role(id),
+    role_id BIGINT REFERENCES guild_restore_role(id),
     guild_id BIGINT REFERENCES guild(id)
 );
 
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_settings (
-    user_id BIGINT REFERENCES guild_member(id),
+    user_id BIGINT,
     guild_id BIGINT REFERENCES guild(id),
     channel_name TEXT,
     bitrate INT,
@@ -125,24 +117,20 @@ CREATE TABLE IF NOT EXISTS lobby_voice_channel_settings (
     PRIMARY KEY (user_id, guild_id)
 );
 
-CREATE TABLE IF NOT EXISTS lobby_voice_channel_author (
-    voice_channel_id BIGINT PRIMARY KEY,
-    guild_id BIGINT REFERENCES guild(id),
-    user_id BIGINT REFERENCES guild_member(id)
+CREATE TABLE IF NOT EXISTS lobby_created_voice_channel (
+    id BIGINT PRIMARY KEY,
+    voice_creator_id BIGINT REFERENCES lobby_voice_channel_creator_settings(id)
 );
 
-CREATE TABLE IF NOT EXISTS lobby_text_channel (
-    id BIGINT,
-    voice_channel_creator_id BIGINT REFERENCES lobby_voice_channel_creator_settings(id),
-    guild_id BIGINT REFERENCES guild(id),
-    PRIMARY KEY (id, voice_channel_creator_id)
+CREATE TABLE IF NOT EXISTS lobby_voice_channel_author (
+    voice_channel_id BIGINT PRIMARY KEY REFERENCES lobby_created_voice_channel(id),
+    user_id BIGINT
 );
+
 
 CREATE TABLE IF NOT EXISTS lobby_message (
     id BIGINT,
     voice_channel_id BIGINT REFERENCES lobby_voice_channel_author(voice_channel_id),
-    guild_id BIGINT REFERENCES guild(id),
-    text_channel_id BIGINT,
     PRIMARY KEY (id, voice_channel_id)
 );
 

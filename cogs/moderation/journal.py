@@ -64,7 +64,6 @@ class Journal(commands.Cog):
         """
         time = datetime.datetime.now(datetime.timezone.utc)
         note = f"<t:{int(time.timestamp())}:d>: 💬 **От <@{ctx.author.id}>:** {note}"
-
         query = ("INSERT INTO journal (guild_id, user_id, notes) "
                  "VALUES ($1, $2, ARRAY[$3]) "
                  "ON CONFLICT (guild_id, user_id) DO UPDATE "
@@ -89,7 +88,8 @@ class Journal(commands.Cog):
 
     @commands.slash_command()
     async def journal_edit(self, ctx: disnake.CommandInteraction,
-                           user: disnake.User, number: int, note: str):
+                           user: disnake.User, number: int,
+                           note: str):
         """Изменить конкретную заметку о пользователе
 
         Parameters

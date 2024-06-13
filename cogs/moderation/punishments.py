@@ -10,7 +10,7 @@ class Punishments(commands.Cog):
         self.pool: asyncpg.Pool = self.bot.get_pool()
 
 
-    @commands.slash_command()
+    #@commands.slash_command()
     async def mute(self, ctx: disnake.CommandInteraction, member: disnake.Member):
         """Замьютить участника"""
         query = ("SELECT role_id "

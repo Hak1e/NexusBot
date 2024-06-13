@@ -504,10 +504,10 @@ class SetupBot(commands.Cog):
         ctx: command interaction
         channel: Канал для мемов
         """
-        query = "INSERT INTO meme_channel (id, guild_id)" \
-                "VALUES ($1, $2)" \
-                "ON CONFLICT (id) DO " \
-                "UPDATE SET id = $1"
+        query = ("INSERT INTO meme_channel (id, guild_id)"
+                 "VALUES ($1, $2)"
+                 "ON CONFLICT (id) DO "
+                 "UPDATE SET id = $1")
         await self.pool.execute(query, channel.id,
                                 ctx.guild.id)
         await ctx.send("Настройки сохранены", ephemeral=True)
@@ -536,10 +536,12 @@ class SetupBot(commands.Cog):
         channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
         channels_creators_ids = map(int, channels_creators_ids)
         for channel_creator_id in channels_creators_ids:
-            query = ("INSERT INTO lobby_voice_channel_creator_settings (id, channel_with_role_prefix, channel_without_role_prefix) "
+            query = ("INSERT INTO lobby_voice_channel_creator_settings (id, channel_with_role_prefix, "
+                     "channel_without_role_prefix) "
                      "VALUES ($1, $2, $3) "
                      "ON CONFLICT (id) DO UPDATE "
                      "SET channel_with_role_prefix = $2, channel_without_role_prefix = $3")
+
             await self.pool.execute(query, channel_creator_id,
                                     with_role, without_role)
 
@@ -548,7 +550,7 @@ class SetupBot(commands.Cog):
     @lobby.sub_command()
     async def creators(self, ctx: disnake.CmdInter,
                        channels_creators_ids, category: disnake.CategoryChannel,
-                       user_limit):
+                       user_limit, custom: bool):
         """Указать категорию, в которой будет создан канал при заходе в канал-генератор
 
         Parameters
@@ -558,7 +560,7 @@ class SetupBot(commands.Cog):
         channels_creators_ids: ID каналов, в которые нужно зайти для создания лобби
         category: Категория, в которой будет создан новый канал
         user_limit: Лимит пользователей для каждого канала через пробел
-
+        custom: Может ли пользователь управлять настройками созданной комнаты
         """
         if isinstance(channels_creators_ids, disnake.VoiceChannel):
             return await ctx.send("Укажите ID каналов, а не их упоминание", ephemeral=True)
@@ -568,17 +570,20 @@ class SetupBot(commands.Cog):
         user_limit = re.split(", |,| ,| ", user_limit)
         user_limit = map(int, user_limit)
         for channel_creator_id, limit in zip(channels_creators_ids, user_limit):
-            query = ("INSERT INTO lobby_voice_channel_creator_settings(id, category_id_for_new_channel, user_limit) "
-                     "VALUES ($1, $2, $3) "
+            query = ("INSERT INTO lobby_voice_channel_creator_settings(id, category_id_for_new_channel,"
+                     "user_limit, custom) "
+                     "VALUES ($1, $2, $3, $4) "
                      "ON CONFLICT (id) DO "
-                     "UPDATE SET category_id_for_new_channel = $2, user_limit = $3")
+                     "UPDATE SET category_id_for_new_channel = $2, user_limit = $3, custom = $4")
             await self.pool.execute(query, channel_creator_id,
-                                    category_id, limit)
+                                    category_id, limit,
+                                    custom)
+
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
-    async def info(self, ctx: disnake.CmdInter,
-                   channels_creators_ids, text_channel: disnake.TextChannel):
+    async def text_channel_log(self, ctx: disnake.CmdInter,
+                               channels_creators_ids, text_channel: disnake.TextChannel):
         """Указать канал, в который будут отправляться сообщения о созданных лобби
 
         Parameters
@@ -594,12 +599,12 @@ class SetupBot(commands.Cog):
         channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
         channels_creators_ids = map(int, channels_creators_ids)
         for channel_creator_id in channels_creators_ids:
-            query = ("INSERT INTO lobby_text_channel (id, voice_channel_creator_id, guild_id) "
-                     "VALUES ($1, $2, $3) "
-                     "ON CONFLICT (id, voice_channel_creator_id) DO UPDATE "
-                     "SET id = $3")
-            await self.pool.execute(query, text_channel_id,
-                                    channel_creator_id, ctx.guild.id)
+            query = ("INSERT INTO lobby_voice_channel_creator_settings (id, text_channel_id) "
+                     "VALUES ($1, $2) "
+                     "ON CONFLICT (id) DO UPDATE "
+                     "SET text_channel_id = $2")
+            await self.pool.execute(query, channel_creator_id,
+                                    text_channel_id)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
@@ -737,7 +742,8 @@ class SetupBot(commands.Cog):
                              "WHERE id = $1")
         is_role_needed = await self.pool.fetchval(role_needed_query, channel_id)
         if not is_role_needed:
-            embed = disnake.Embed(title=f"Роли канала {ctx.guild.get_channel(channel_id)}", color=disnake.Color.blurple())
+            embed = disnake.Embed(title=f"Роли канала {ctx.guild.get_channel(channel_id)}",
+                                  color=disnake.Color.blurple())
             embed.add_field(name="", value="Наличие роли не требуется")
             return await ctx.send(embed=embed, ephemeral=ephemeral)
 

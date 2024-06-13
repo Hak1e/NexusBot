@@ -73,7 +73,7 @@ class AuthorCommands(commands.Cog):
     async def sync_guilds(self, ctx: disnake.CmdInter):
         """Команда для автора бота"""
         bot_author_ids = await self.get_bot_author(ctx.author.id)
-        if ctx.author.id not in bot_author_ids:
+        if not bot_author_ids or ctx.author.id not in bot_author_ids:
             return await ctx.send("Вы не можете использовать эту команду", ephemeral=True)
         guilds = await self.bot.fetch_guilds().flatten()
         for guild in guilds:
