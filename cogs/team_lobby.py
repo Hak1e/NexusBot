@@ -5,8 +5,17 @@ import asyncpg
 import logging
 from constants import MAX_ITEMS_IN_MENU, MAX_SELECT_MENUS
 import enum
-import json
-from models.room_author_settings import AuthorSettings
+from models.lobby_settings import AuthorSettings, RequestedRole, LobbyChannelSettings
+
+
+def generate_initial_embed_message(member):
+    return disnake.Embed(title="Добро пожаловать в комнату", color=disnake.Color.blurple(),
+                         description=f"Владелец: {member.mention}\n"
+                                     "Используйте кнопки ниже для настройки канала.\n"
+                                     "Если кнопки перестали работать, воспользуйтесь "
+                                     "слеш-командой `/channel dashboard` для повторного вызова "
+                                     "сообщения с кнопками или используйте другие слеш-команды "
+                                     "для комнаты без взаимодействия с кнопками")
 
 
 class ChannelActions(str, enum.Enum):
@@ -16,12 +25,6 @@ class ChannelActions(str, enum.Enum):
     edit_name = "edit_name"
     edit_bitrate = "edit_bitrate"
     edit_user_limit = "edit_user_limit"
-
-
-class RequestedRole(str, enum.Enum):
-    not_found = "not_found"
-    not_needed = "not_needed"
-    missing = "missing"
 
 
 class LobbyInfoChannel(str, enum.Enum):
@@ -68,6 +71,7 @@ class BaseDashboardButtons(disnake.ui.View):
                  bot):
         self.bot = bot
         self.pool = pool
+        self.lobby_settings = LobbyChannelSettings(bot)
         super().__init__(timeout=300)
         self.author_settings = AuthorSettings(bot)
 
@@ -142,6 +146,20 @@ class BaseDashboardButtons(disnake.ui.View):
         await self.create_member_select_menus(ctx, members,
                                               ChannelActions.unban)
 
+    @disnake.ui.button(label="Лимит", style=disnake.ButtonStyle.blurple)
+    async def change_room_limit(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+        if not await self.is_channel_author(ctx):
+            await ctx.send("Вы можете использовать кнопки только в своём канале", ephemeral=True)
+            return
+        modal_window = ModalWindow(ctx, self.pool,
+                                   "0 - 99", "Введите лимит участников",
+                                   ChannelActions.edit_user_limit, self.bot)
+        await ctx.response.send_modal(modal_window)
+        assert isinstance(ctx.channel, disnake.VoiceChannel)
+        message = await self.lobby_settings.get_lobby_info_message(ctx.channel)
+        if message:
+            await self.lobby_settings.update_lobby_info_message(message, ctx.channel)
+
 
 class ModalWindow(disnake.ui.Modal):
     def __init__(self, ctx,
@@ -151,6 +169,7 @@ class ModalWindow(disnake.ui.Modal):
         self.pool = pool
         self.action = action
         self.author_settings = AuthorSettings(bot)
+        self.lobby_settings = LobbyChannelSettings(bot)
         text_input = disnake.ui.TextInput(label="Новое значение", style=disnake.TextInputStyle.short,
                                           max_length=50, custom_id=f"text_input-{ctx.id}",
                                           placeholder=placeholder_text)
@@ -165,27 +184,28 @@ class ModalWindow(disnake.ui.Modal):
             await voice_channel.edit(name=value)
             await ctx.send(embed=disnake.Embed(description=f"Название канала успешно изменено на: {value}",
                                                color=disnake.Color.green()), ephemeral=True)
+            await self.author_settings.update_voice_channel_name(ctx.channel)
         elif self.action == ChannelActions.edit_bitrate:
             try:
                 await voice_channel.edit(bitrate=int(value) * 1000)
                 await ctx.send(embed=disnake.Embed(description=f"Битрейт канала успешно изменен на: `{value}`",
                                                    color=disnake.Color.green()), ephemeral=True)
+                await self.author_settings.update_voice_channel_bitrate(ctx.channel)
             except disnake.errors.HTTPException:
                 await ctx.send(embed=disnake.Embed(description="Введено неверное значение битрейта",
                                                    color=disnake.Color.red()), ephemeral=True)
-                return
         elif self.action == ChannelActions.edit_user_limit:
             if 0 <= int(value) <= 99:
                 await voice_channel.edit(user_limit=value)
                 await ctx.send(embed=disnake.Embed(description=f"Лимит пользователей успешно изменен на: `{value}`",
                                                    color=disnake.Color.green()), ephemeral=True)
+                custom_room = await self.lobby_settings.is_custom(ctx.channel.id)
+                if custom_room:
+                    await self.author_settings.update_voice_channel_limit(ctx.channel)
             else:
                 await ctx.send(embed=disnake.Embed(description="Введено неверное значение лимита пользователей.\n"
                                                                "Введите число от 0 до 99 включительно",
                                                    color=disnake.Color.red()), ephemeral=True)
-                return
-        assert isinstance(ctx.channel, disnake.VoiceChannel)
-        await self.author_settings.update_voice_channel_overwrites(ctx.channel)
 
 
 class CustomChannelDashboardButtons(BaseDashboardButtons):
@@ -224,6 +244,7 @@ class CustomChannelDashboardButtons(BaseDashboardButtons):
                                    "Название канала", "Введите новое название канала",
                                    ChannelActions.edit_name, self.bot)
         await ctx.response.send_modal(modal_window)
+        await self.author_settings.update_voice_channel_name(ctx.channel)
 
     @disnake.ui.button(label="Битрейт", style=disnake.ButtonStyle.blurple)
     async def change_room_bitrate(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
@@ -235,25 +256,14 @@ class CustomChannelDashboardButtons(BaseDashboardButtons):
                                    ChannelActions.edit_bitrate, self.bot)
         await ctx.response.send_modal(modal_window)
         assert isinstance(ctx.channel, disnake.VoiceChannel)
-        await self.author_settings.update_voice_channel_overwrites(ctx.channel)
-
-    @disnake.ui.button(label="Лимит", style=disnake.ButtonStyle.blurple)
-    async def change_room_limit(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
-        if not await self.is_channel_author(ctx):
-            await ctx.send("Вы можете использовать кнопки только в своём канале", ephemeral=True)
-            return
-        modal_window = ModalWindow(ctx, self.pool,
-                                   "0 - 99", "Введите лимит участников",
-                                   ChannelActions.edit_user_limit, self.bot)
-        await ctx.response.send_modal(modal_window)
-        assert isinstance(ctx.channel, disnake.VoiceChannel)
-        await self.author_settings.update_voice_channel_overwrites(ctx.channel)
+        await self.author_settings.update_voice_channel_bitrate(ctx.channel)
 
 
 class Lobby(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.pool: asyncpg.Pool = self.bot.get_pool()
+        self.lobby_settings = LobbyChannelSettings(bot)
 
     @staticmethod
     def create_lobby_info_embed(member, role: disnake.Role,
@@ -278,211 +288,6 @@ class Lobby(commands.Cog):
             .set_footer(text=f"Участников: 1/{user_limit}")
         )
         return embed
-
-    # region Get
-
-    async def get_channel_creator_id(self, lobby_voice_channel_id):
-        query = ("SELECT voice_creator_id "
-                 "FROM lobby_created_voice_channel "
-                 "WHERE id = $1")
-        return await self.pool.fetchval(query, lobby_voice_channel_id)
-
-    async def get_text_channel_id(self, voice_channel_creator_id):
-        query = ("SELECT text_channel_id "
-                 "FROM lobby_voice_channel_creator_settings "
-                 "WHERE id = $1")
-        return await self.pool.fetchval(query, voice_channel_creator_id)
-
-    async def get_lobby_message_id(self, voice_channel):
-        query = ("SELECT id "
-                 "FROM lobby_message "
-                 "WHERE voice_channel_id = $1")
-        message_id = await self.pool.fetchval(query, voice_channel.id)
-        return message_id
-
-    async def get_lobby_info_message(self, voice_channel):
-        message_id = await self.get_lobby_message_id(voice_channel)
-        if not message_id:
-            return
-        channel_creator_id = await self.get_channel_creator_id(voice_channel.id)
-        text_channel_id = await self.get_text_channel_id(channel_creator_id)
-        if not text_channel_id:
-            return
-        message = await self.get_message_from_discord(voice_channel, message_id,
-                                                      text_channel_id)
-        return message or None
-
-    async def get_message_from_discord(self, voice_channel: disnake.VoiceChannel,
-                                       message_id, text_channel_id,
-                                       row=0):
-        if row == 4:
-            return
-        try:
-            text_channel = voice_channel.guild.get_channel(text_channel_id)
-            message = await text_channel.fetch_message(message_id)
-            # if not message:
-            #     # Когда Дискорд нестабилен, бот может не получить запрашиваемое сообщение.
-            #     # Поэтому делаем 3 попытки получить сообщение.
-            #     for i in range(3):
-            #         message = await text_channel.fetch_message(message_id)
-            #         if message:
-            #             break
-            #         await asyncio.sleep(1)
-            return message
-        except disnake.errors.NotFound:
-            await asyncio.sleep(1)
-            message = await self.get_message_from_discord(voice_channel, message_id,
-                                                          text_channel_id, row + 1)
-            return message or None
-
-    async def get_custom_channel_settings(self, guild_id,
-                                          member):
-        query = ("SELECT channel_name, bitrate, user_limit "
-                 "FROM lobby_voice_channel_settings "
-                 "WHERE guild_id = $1 and user_id = $2")
-        result = await self.pool.fetchrow(query, guild_id,
-                                          member.id)
-        custom_channel_name = None
-        bitrate = 64000
-        user_limit = 0
-        if result:
-            custom_channel_name = result.get("channel_name", None)
-            bitrate = result.get("bitrate", 64000)
-            user_limit = result.get("user_limit", 0)
-
-        return custom_channel_name, bitrate, user_limit
-
-    async def get_voice_channel_author_id(self, voice_channel):
-        get_channel_author_id = "SELECT user_id " \
-                                "FROM lobby_voice_channel_author " \
-                                "WHERE voice_channel_id = $1"
-        channel_author_id = await self.pool.fetchval(get_channel_author_id, voice_channel.id)
-        return channel_author_id
-
-    async def get_channel_overwrites(self, category,
-                                     member):
-        initial_category_overwrites = category.overwrites
-        category_overwrites = category.overwrites.copy()
-        member_overwrite = disnake.PermissionOverwrite(view_channel=True, connect=True,
-                                                       move_members=True)
-        query = ("SELECT channel_overwrites "
-                 "FROM lobby_voice_channel_settings "
-                 "WHERE guild_id = $1 and user_id = $2")
-        channel_overwrites = await self.pool.fetchval(query, member.guild.id,
-                                                      member.id)
-        if channel_overwrites:
-            channel_overwrites = json.loads(channel_overwrites)
-            for target_id_permissions in channel_overwrites:
-                target_id = target_id_permissions["target"]
-                permissions = target_id_permissions["permissions"]
-                target = member.guild.get_member(target_id) or member.guild.get_role(target_id)
-
-                permission_overwrite = disnake.PermissionOverwrite()
-                for permission, value in permissions.items():
-                    setattr(permission_overwrite, permission, value)
-
-                category_overwrites[target] = permission_overwrite
-        else:
-            category_overwrites[member] = member_overwrite
-
-        category_overwrites[self.bot.user] = member_overwrite
-        category_overwrites.update(initial_category_overwrites)
-
-        return category_overwrites
-
-    async def get_channel_required_role(self, member,
-                                        channel_id):
-        query = ("SELECT role_needed "
-                 "FROM lobby_voice_channel_creator_settings "
-                 "WHERE id = $1")
-        role_required = await self.pool.fetchval(query, channel_id)
-        if not role_required:
-            return RequestedRole.not_needed
-
-        get_role_required_query = ("SELECT role_id "
-                                   "FROM lobby_voice_channel_creator_role "
-                                   "WHERE voice_channel_id = $1 and guild_id = $2")
-        result = await self.pool.fetch(get_role_required_query, channel_id,
-                                       member.guild.id)
-        required_roles_ids = []
-        if result:
-            for record in result:
-                required_roles_ids.append(record["role_id"])
-
-        if not required_roles_ids:
-            return RequestedRole.not_found
-
-        user_required_role = None
-        for role in member.roles:
-            if role.id in required_roles_ids:
-                user_required_role = role
-                break
-
-        if not user_required_role:
-            return RequestedRole.missing
-        return user_required_role
-
-    # endregion
-
-    async def log_needed(self, voice_channel_id):
-        query = ("SELECT log_needed "
-                 "FROM lobby_voice_channel_creator_settings "
-                 "WHERE id = $1")
-        return await self.pool.fetchval(query, int(voice_channel_id))
-
-    async def save_message_id_to_db(self, voice_channel,
-                                    message):
-        query = ("INSERT INTO lobby_message (id, voice_channel_id)"
-                 "VALUES ($1, $2)")
-        await self.pool.execute(query, message.id,
-                                voice_channel.id)
-
-    async def delete_message_id_from_db(self, message_id):
-        query = ("DELETE FROM lobby_message "
-                 "WHERE id = $1")
-        await self.pool.execute(query, message_id)
-
-    @staticmethod
-    async def update_lobby_info_message(message, voice_channel):
-        new_embed = message.embeds[0]
-        member_enumeration = []
-        counter = 1
-        for member in voice_channel.members:
-            member_enumeration.append(f"【{counter}】{member.mention}")
-            counter += 1
-
-        member_list = "\n".join(member_enumeration)
-        new_embed.set_field_at(0, name="", value=f"{member_list}\n")
-        user_limit = voice_channel.user_limit
-        if user_limit == 0:
-            user_limit = "∞"
-        if len(voice_channel.members) >= voice_channel.user_limit:
-            new_embed.set_field_at(1, name="",
-                                   value="**❌ Канал заполнен**", inline=False)
-        else:
-            new_embed.set_field_at(1, "",
-                                   f"\n**✅ Канал:** {voice_channel.mention}", inline=False)
-        new_embed.set_footer(text=f"Участников: {len(voice_channel.members)}/{user_limit}")
-        await message.edit(embed=new_embed)
-
-    async def set_voice_channel_author_id(self, member,
-                                          voice_channel):
-        query = ("INSERT INTO lobby_voice_channel_author(voice_channel_id, user_id) "
-                 "VALUES ($1, $2)")
-        await self.pool.execute(query, voice_channel.id,
-                                member.id)
-
-    async def delete_voice_channel_author_id(self, voice_channel):
-        query = ("DELETE FROM lobby_voice_channel_author "
-                 "WHERE voice_channel_id = $1")
-        await self.pool.execute(query, voice_channel.id)
-
-    async def add_lobby_channel_to_db(self, created_channel_id,
-                                      channel_creator_id):
-        query = ("INSERT INTO lobby_created_voice_channel (id, voice_creator_id) "
-                 "VALUES ($1, $2)")
-        await self.pool.execute(query, created_channel_id,
-                                channel_creator_id)
 
     async def create_voice_channel(self, member,
                                    category, overwrites,
@@ -527,15 +332,6 @@ class Lobby(commands.Cog):
                                                                     overwrites=overwrites, user_limit=user_limit)
             return voice_channel
 
-    async def is_lobby_category(self, channel):
-        channel_creator_id = await self.get_channel_creator_id(channel.id)
-        query = ("SELECT category_id_for_new_channel "
-                 "FROM lobby_voice_channel_creator_settings "
-                 "WHERE id = $1 and category_id_for_new_channel = $2")
-        lobby_category_id = await self.pool.fetchval(query, channel_creator_id,
-                                                     channel.category.id)
-        return True if lobby_category_id else False
-
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: disnake.Member,
                                     before: disnake.VoiceState, current: disnake.VoiceState):
@@ -548,39 +344,30 @@ class Lobby(commands.Cog):
 
         if before.channel:
             print(f"Before channel {before.channel.name}")
-            if await self.is_lobby_category(before.channel):
-                print("Left lobby room")
-                if not before.channel.members:
-                    await before.channel.edit(overwrites=temp_overwrites)
-                    query = ("SELECT voice_creator_id "
-                             "FROM lobby_created_voice_channel "
-                             "WHERE id = $1")
-                    voice_creator_id = await self.pool.fetchval(query, before.channel.id)
-                    if not voice_creator_id:
-                        return
-                    query = ("SELECT custom "
-                             "FROM lobby_voice_channel_creator_settings "
-                             "WHERE id = $1")
-                    custom = await self.pool.fetchval(query, voice_creator_id)
-                    print("Before channel is empty. Deleting")
-                    if custom is False:
-                        message = await self.get_lobby_info_message(before.channel)
-                        if message:
-                            await self.delete_message_id_from_db(message.id)
-                            await message.delete()
-                            print("Lobby info message deleted")
-
-                    await self.delete_voice_channel_author_id(before.channel)
-                    print("[2] Deleting channel")
-                    try:
-                        await before.channel.delete()
-                    except disnake.errors.NotFound:
-                        print(f"Error while deleting channel")
-                elif before.channel.members:
-                    print("Before channel is not empty. Updating lobby info")
-                    message = await self.get_lobby_info_message(before.channel)
-                    if message:
-                        await self.update_lobby_info_message(message, before.channel)
+            voice_creator_id = await self.lobby_settings.get_channel_creator_id(before.channel.id)
+            if not voice_creator_id:
+                return
+            print("Left lobby room")
+            if not before.channel.members:
+                await before.channel.edit(overwrites=temp_overwrites)
+                print("Before channel is empty. Deleting")
+                message = await self.lobby_settings.get_lobby_info_message(before.channel)
+                if message:
+                    await self.lobby_settings.delete_message_id_from_db(message.id)
+                    await message.delete()
+                    print("Lobby info message deleted")
+                await self.lobby_settings.delete_voice_channel_author_id(before.channel)
+                await self.lobby_settings.delete_created_voice_channel_from_db(before.channel)
+                print("[2] Deleting channel")
+                try:
+                    await before.channel.delete()
+                except disnake.errors.NotFound:
+                    print(f"Error while deleting channel")
+            elif before.channel.members:
+                print("Before channel is not empty. Updating lobby info")
+                message = await self.lobby_settings.get_lobby_info_message(before.channel)
+                if message:
+                    await self.lobby_settings.update_lobby_info_message(message, before.channel)
 
         if current.channel:
             print(f"Current channel {current.channel.name}")
@@ -600,16 +387,10 @@ class Lobby(commands.Cog):
                         logging.error(f"Категория для создания каналов не найдена в базе данных")
                         return
                     category = member.guild.get_channel(lobby_category_id)
-                    overwrites = await self.get_channel_overwrites(category, member)
-                    hello_embed = disnake.Embed(title="Добро пожаловать в комнату", color=disnake.Color.blurple(),
-                                                description=f"Владелец: {member.mention}\n"
-                                                            "Используйте кнопки ниже для настройки канала.\n"
-                                                            "Если кнопки перестали работать, воспользуйтесь "
-                                                            "слеш-командой `/channel dashboard` для повторного вызова "
-                                                            "сообщения с кнопками или используйте другие слеш-команды "
-                                                            "для комнаты без взаимодействия с кнопками")
+                    overwrites = await self.lobby_settings.get_channel_overwrites(category, member)
+                    hello_embed = generate_initial_embed_message(member)
                     if custom:
-                        channel_name, bitrate, user_limit = await self.get_custom_channel_settings(guild_id, member)
+                        channel_name, bitrate, user_limit = await self.lobby_settings.get_custom_channel_settings(guild_id, member)
                         voice_channel = await self.create_voice_channel(member=member, category=category,
                                                                         overwrites=overwrites, custom=True,
                                                                         custom_channel_name=channel_name,
@@ -625,12 +406,12 @@ class Lobby(commands.Cog):
                             return
                         await asyncio.sleep(1)
                         if voice_channel.members:
-                            await self.add_lobby_channel_to_db(voice_channel.id, voice_creator_id)
-                            await self.set_voice_channel_author_id(member, voice_channel)
+                            await self.lobby_settings.add_lobby_channel_to_db(voice_channel.id, voice_creator_id)
+                            await self.lobby_settings.set_voice_channel_author_id(member, voice_channel)
                             buttons = CustomChannelDashboardButtons(self.pool, self.bot)
                             await voice_channel.send(embed=hello_embed, view=buttons)
                     else:
-                        required_role = await self.get_channel_required_role(member, current.channel.id)
+                        required_role = await self.lobby_settings.get_channel_required_role(member, current.channel.id)
                         query = ("SELECT user_limit "
                                  "FROM lobby_voice_channel_creator_settings "
                                  "WHERE id = $1")
@@ -640,7 +421,6 @@ class Lobby(commands.Cog):
                                                                         user_limit=user_limit,
                                                                         required_role=required_role,
                                                                         voice_creator=current.channel)
-                        channel_creator = current.channel
                         print("Channel created. Trying to move member")
                         try:
                             await member.move_to(voice_channel)
@@ -651,34 +431,39 @@ class Lobby(commands.Cog):
                             return
                         await asyncio.sleep(1)
                         if voice_channel.members:
-                            await self.add_lobby_channel_to_db(voice_channel.id, voice_creator_id)
-                            await self.set_voice_channel_author_id(member, voice_channel)
+                            await self.lobby_settings.add_lobby_channel_to_db(voice_channel.id, voice_creator_id)
+                            await self.lobby_settings.set_voice_channel_author_id(member, voice_channel)
                             if required_role == RequestedRole.missing:
                                 query = ("SELECT role_not_found_message "
                                          "FROM lobby_voice_channel_creator_settings "
                                          "WHERE id = $1")
                                 role_not_found_message = await self.pool.fetchval(query, voice_creator_id)
                                 default_error_message = (
-                                    f"{member.mention}, у Вас не была найдена подходящая роль для данной категории.\n"
+                                    f"У Вас не была найдена подходящая роль для данной категории.\n"
                                     f"Пожалуйста, выберите подходящую роль в разделе <id:customize> или в канале с "
                                     f"выбором ролей")
                                 error_message = role_not_found_message or default_error_message
                                 embed = disnake.Embed(description=error_message, color=disnake.Color.red())
-                                await voice_channel.send(embed=embed)
+                                if not role_not_found_message:
+                                    await voice_channel.send(f"{member.mention},", embed=embed)
+                                else:
+                                    await voice_channel.send(embed=embed)
                             embed = self.create_lobby_info_embed(member, required_role,
                                                                  voice_channel, voice_channel.user_limit)
 
-                            text_channel_id = await self.get_text_channel_id(channel_creator.id)
-                            text_channel = member.guild.get_channel(text_channel_id)
-                            lobby_log_needed = await self.log_needed(channel_creator.id)
-                            await voice_channel.edit(overwrites=overwrites)
-                            if lobby_log_needed and not text_channel:
-                                await voice_channel.send(f"{member.mention}, "
-                                                         f"Оповещение о создании комнаты не было создано из-за неверных"
-                                                         f" настроек. Обратитесь к администратору за помощью")
-                            elif text_channel:
-                                lobby_info_message = await text_channel.send(embed=embed)
-                                await self.save_message_id_to_db(voice_channel, lobby_info_message)
+                            lobby_log_needed = await self.lobby_settings.log_needed(voice_creator_id)
+                            if lobby_log_needed:
+                                print("Log needed")
+                                text_channel_id = await self.lobby_settings.get_text_channel_id(voice_creator_id)
+                                text_channel = member.guild.get_channel(text_channel_id)
+                                await voice_channel.edit(overwrites=overwrites)
+                                if not text_channel:
+                                    await voice_channel.send(f"{member.mention}, "
+                                                             f"Оповещение о создании комнаты не было создано из-за неверных"
+                                                             f" настроек. Обратитесь к администратору за помощью")
+                                elif text_channel:
+                                    lobby_info_message = await text_channel.send(embed=embed)
+                                    await self.lobby_settings.save_message_id_to_db(voice_channel, lobby_info_message)
                             buttons = BaseDashboardButtons(self.pool, self.bot)
                             await voice_channel.send(embed=hello_embed, view=buttons)
                     if voice_channel and not voice_channel.members:
@@ -689,14 +474,14 @@ class Lobby(commands.Cog):
                             return
 
             else:
-                if await self.is_lobby_category(current.channel):
-                    print("Joined lobby room")
-                    message = await self.get_lobby_info_message(current.channel)
-                    if message:
-                        await self.update_lobby_info_message(message, current.channel)
-                else:
-                    print("Not channel creator, returning")
+                voice_creator_id = await self.lobby_settings.get_channel_creator_id(current.channel.id)
+                if not voice_creator_id:
+                    return
+                print("Joined lobby room")
+                message = await self.lobby_settings.get_lobby_info_message(current.channel)
+                if message:
+                    await self.lobby_settings.update_lobby_info_message(message, current.channel)
 
-
+                    
 def setup(bot):
     bot.add_cog(Lobby(bot))

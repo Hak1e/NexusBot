@@ -75,10 +75,10 @@ CREATE TABLE IF NOT EXISTS journal_log_channel (
     guild_id BIGINT REFERENCES guild(id)
 );
 
-insert into bot_author (user_id) values (389787190986670082);
 CREATE TABLE IF NOT EXISTS bot_author (
     user_id BIGINT PRIMARY KEY
 );
+insert into bot_author (user_id) values (389787190986670082);
 
 -- CREATE TABLE IF NOT EXISTS error_logs_channel (
 --     id BIGINT PRIMARY KEY,
@@ -103,8 +103,8 @@ CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_settings (
 
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_role (
     voice_channel_id BIGINT REFERENCES lobby_voice_channel_creator_settings(id),
-    role_id BIGINT REFERENCES guild_restore_role(id),
-    guild_id BIGINT REFERENCES guild(id)
+    role_id BIGINT,
+    PRIMARY KEY (voice_channel_id, role_id)
 );
 
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_settings (

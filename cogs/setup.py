@@ -187,20 +187,21 @@ class SetupBot(commands.Cog):
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @set.sub_command()
-    async def user_left_log(self, ctx: disnake.CommandInteraction,
-                            channel: disnake.TextChannel):
+    async def goodbye_channel(self, ctx: disnake.CommandInteraction,
+                              channel: disnake.TextChannel):
         """Указать канал, в котором будет лог вышедших пользователей
 
         Parameters
         ----------
         ctx: command interaction
-        channel: Текстовый канал
+        channel: Текстовый канал для отправки информации о вышедших пользователях
         """
-        query = "INSERT INTO text_channels (guild_id, goodbye_channel_id)" \
+        query = "INSERT INTO goodbye_channel (id, guild_id)" \
                 "VALUES ($1, $2)" \
-                "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET goodbye_channel_id = $2"
-        await self.pool.execute(query, ctx.guild.id, channel.id)
+                "ON CONFLICT (id) DO " \
+                "UPDATE SET id = $1"
+        await self.pool.execute(query, channel.id,
+                                ctx.guild.id)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @set.sub_command()
@@ -590,21 +591,26 @@ class SetupBot(commands.Cog):
         ----------
 
         ctx: command interaction
-        text_channel: Текстовый канал, куда будут отправляться сообщения о лобби
+        text_channel: Текстовый канал, куда будут отправляться сообщения о лобби. None для отключения
         channels_creators_ids: Голосовые каналы, в которые нужно зайти для создания лобби
         """
         if isinstance(channels_creators_ids, disnake.VoiceChannel):
             return await ctx.send("Укажите ID каналов, а не их упоминание", ephemeral=True)
-        text_channel_id = text_channel.id or int(text_channel)  # type: ignore
+        if text_channel is None:
+            text_channel_id = None
+            log_needed = False
+        else:
+            text_channel_id = text_channel.id or int(text_channel)  # type: ignore
+            log_needed = True
         channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
         channels_creators_ids = map(int, channels_creators_ids)
         for channel_creator_id in channels_creators_ids:
-            query = ("INSERT INTO lobby_voice_channel_creator_settings (id, text_channel_id) "
-                     "VALUES ($1, $2) "
+            query = ("INSERT INTO lobby_voice_channel_creator_settings (id, text_channel_id, log_needed) "
+                     "VALUES ($1, $2, $3) "
                      "ON CONFLICT (id) DO UPDATE "
-                     "SET text_channel_id = $2")
+                     "SET text_channel_id = $2, log_needed = $3")
             await self.pool.execute(query, channel_creator_id,
-                                    text_channel_id)
+                                    text_channel_id, log_needed)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
@@ -627,7 +633,7 @@ class SetupBot(commands.Cog):
             query = ("INSERT INTO lobby_voice_channel_creator_settings (id, default_name) "
                      "VALUES ($1, $2) "
                      "ON CONFLICT (id) DO "
-                     "UPDATE SET default_name = $3")
+                     "UPDATE SET default_name = $2")
             await self.pool.execute(query, channel_creator_id,
                                     name)
 
@@ -660,7 +666,7 @@ class SetupBot(commands.Cog):
 
     @lobby.sub_command()
     async def add_roles_for_channels_creators(self, ctx: disnake.CmdInter,
-                                              channels_creators_ids, roles_ids=None):
+                                              channels_creators_ids, roles_ids):
         """Добавить роль, с которой можно зайти в канал
 
         Parameters
@@ -673,21 +679,23 @@ class SetupBot(commands.Cog):
         if isinstance(channels_creators_ids, disnake.VoiceChannel):
             return await ctx.send("Укажите ID каналов, а не их упоминание", ephemeral=True)
         channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
-        channels_creators_ids = map(int, channels_creators_ids)
-        if roles_ids:
-            if isinstance(roles_ids, disnake.Role):
-                return await ctx.send("Укажите ID роли или ролей", ephemeral=True)
-            for channel_creator_id in channels_creators_ids:
-                for role_id in roles_ids:
-                    query = ("INSERT INTO lobby_voice_channel_creator_role (voice_channel_id, role_id, guild_id) "
-                             "VALUES ($1, $2, $3)")
-                    await self.pool.execute(query, ctx.guild.id,
-                                            channel_creator_id, role_id)
-                    query = ("UPDATE lobby_voice_channel_creator_settings "
-                             "SET role_needed = $2 "
-                             "WHERE id = $1")
-                    await self.pool.execute(query, channel_creator_id,
-                                            True)
+        channels_creators_ids = list(map(int, channels_creators_ids))
+        if isinstance(roles_ids, disnake.Role):
+            return await ctx.send("Укажите ID роли или ролей", ephemeral=True)
+        roles_ids = re.split(", |,| ,| ", roles_ids)
+        roles_ids = list(map(int, roles_ids))
+        for channel_creator_id in channels_creators_ids:
+            for role_id in roles_ids:
+                query = ("INSERT INTO lobby_voice_channel_creator_role (voice_channel_id, role_id) "
+                         "VALUES ($1, $2) "
+                         "ON CONFLICT (voice_channel_id, role_id) DO NOTHING")
+                await self.pool.execute(query, channel_creator_id,
+                                        role_id)
+                query = ("UPDATE lobby_voice_channel_creator_settings "
+                         "SET role_needed = $2 "
+                         "WHERE id = $1")
+                await self.pool.execute(query, channel_creator_id,
+                                        True)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
