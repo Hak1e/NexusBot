@@ -156,9 +156,6 @@ class BaseDashboardButtons(disnake.ui.View):
                                    ChannelActions.edit_user_limit, self.bot)
         await ctx.response.send_modal(modal_window)
         assert isinstance(ctx.channel, disnake.VoiceChannel)
-        message = await self.lobby_settings.get_lobby_info_message(ctx.channel)
-        if message:
-            await self.lobby_settings.update_lobby_info_message(message, ctx.channel)
 
 
 class ModalWindow(disnake.ui.Modal):
@@ -199,6 +196,9 @@ class ModalWindow(disnake.ui.Modal):
                 await voice_channel.edit(user_limit=value)
                 await ctx.send(embed=disnake.Embed(description=f"Лимит пользователей успешно изменен на: `{value}`",
                                                    color=disnake.Color.green()), ephemeral=True)
+                message = await self.lobby_settings.get_lobby_info_message(ctx.channel)
+                if message:
+                    await self.lobby_settings.update_lobby_info_message(message, ctx.channel)
                 custom_room = await self.lobby_settings.is_custom(ctx.channel.id)
                 if custom_room:
                     await self.author_settings.update_voice_channel_limit(ctx.channel)

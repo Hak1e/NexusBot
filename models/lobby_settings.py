@@ -97,16 +97,16 @@ class LobbyChannelSettings:
         user_limit = voice_channel.user_limit
         if user_limit == 0:
             user_limit = "∞"
-        if len(voice_channel.members) >= voice_channel.user_limit:
+        if len(voice_channel.members) >= voice_channel.user_limit != 0:
             new_embed.set_field_at(1, name="",
-                                   value="**❌ Канал заполнен**", inline=False)
+                                   value="\n**❌ Канал заполнен**", inline=False)
         else:
-            new_embed.set_field_at(1, "",
-                                   f"\n**✅ Канал:** {voice_channel.mention}", inline=False)
+            new_embed.set_field_at(1, name="",
+                                   value=f"\n**✅ Канал:** {voice_channel.mention}", inline=False)
         new_embed.set_footer(text=f"Участников: {len(voice_channel.members)}/{user_limit}")
         await message.edit(embed=new_embed)
 
-# region Get
+    # region Get
 
     async def get_channel_creator_id(self, lobby_voice_channel_id):
         query = ("SELECT voice_creator_id "
@@ -303,8 +303,3 @@ class LobbyChannelSettings:
                  "FROM lobby_voice_channel_creator_settings "
                  "WHERE id = $1")
         return await self.pool.fetchval(query, voice_creator_id)
-
-
-
-
-
