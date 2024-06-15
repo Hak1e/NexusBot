@@ -1,3 +1,8 @@
+CREATE TABLE IF NOT EXISTS bot_author (
+    user_id BIGINT PRIMARY KEY
+);
+insert into bot_author (user_id) values (389787190986670082);
+
 CREATE TABLE IF NOT EXISTS guild (
     id BIGINT PRIMARY KEY,
     owner_id BIGINT
@@ -10,44 +15,44 @@ CREATE TABLE IF NOT EXISTS guild_sync (
 );
 
 CREATE TABLE IF NOT EXISTS guild_member (
+    guild_id BIGINT REFERENCES guild(id),
     id BIGINT UNIQUE,
-    guild_id BIGINT REFERENCES guild(id),
     nick TEXT,
-    PRIMARY KEY (id, guild_id)
+    PRIMARY KEY (guild_id, id)
 );
 
-CREATE TABLE IF NOT EXISTS guild_restore_role (
-    id BIGINT PRIMARY KEY,
-    guild_id BIGINT REFERENCES guild(id),
-    name TEXT
-);
+-- CREATE TABLE IF NOT EXISTS guild_restore_role (
+-- --     guild_id BIGINT REFERENCES guild(id),
+-- --     id BIGINT PRIMARY KEY,
+-- --     name TEXT
+-- -- );
 
-CREATE TABLE IF NOT EXISTS member_role (
-    member_id BIGINT REFERENCES guild_member(id),
-    guild_id BIGINT REFERENCES guild(id),
-    role_id BIGINT REFERENCES guild_restore_role(id),
-    PRIMARY KEY (member_id, guild_id, role_id)
-);
+-- CREATE TABLE IF NOT EXISTS member_role
+-- (
+--     guild_id  BIGINT REFERENCES guild (id),
+--     member_id BIGINT REFERENCES guild_member (id),
+--     role_id BIGINT REFERENCES guild_restore_role(id),
+--     PRIMARY KEY (member_id, guild_id, role_id)
+-- );
 
 CREATE TABLE IF NOT EXISTS goodbye_channel (
-    id BIGINT PRIMARY KEY,
-    guild_id BIGINT REFERENCES guild(id)
+    guild_id BIGINT REFERENCES guild(id),
+    id BIGINT PRIMARY KEY
 );
 
 CREATE TABLE IF NOT EXISTS creativity_footer_text (
-    guild_id BIGINT REFERENCES guild(id) PRIMARY KEY,
-    text TEXT
+    text TEXT,
+    guild_id BIGINT REFERENCES guild(id) PRIMARY KEY
 );
 
-
 CREATE TABLE IF NOT EXISTS art_channel (
-    id BIGINT PRIMARY KEY,
-    guild_id BIGINT REFERENCES guild(id)
+    guild_id BIGINT REFERENCES guild(id),
+    id BIGINT PRIMARY KEY
 );
 
 CREATE TABLE IF NOT EXISTS meme_channel (
-    id BIGINT PRIMARY KEY,
-    guild_id BIGINT REFERENCES guild(id)
+    guild_id BIGINT REFERENCES guild(id),
+    id BIGINT PRIMARY KEY
 );
 
 CREATE TABLE IF NOT EXISTS emoji_reaction (
@@ -71,14 +76,9 @@ CREATE TABLE IF NOT EXISTS journal (
 );
 
 CREATE TABLE IF NOT EXISTS journal_log_channel (
-    id BIGINT PRIMARY KEY,
-    guild_id BIGINT REFERENCES guild(id)
+    guild_id BIGINT REFERENCES guild(id),
+    id BIGINT PRIMARY KEY
 );
-
-CREATE TABLE IF NOT EXISTS bot_author (
-    user_id BIGINT PRIMARY KEY
-);
-insert into bot_author (user_id) values (389787190986670082);
 
 -- CREATE TABLE IF NOT EXISTS error_logs_channel (
 --     id BIGINT PRIMARY KEY,
@@ -88,6 +88,7 @@ insert into bot_author (user_id) values (389787190986670082);
 
 -- region Lobbies
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_settings (
+    guild_id BIGINT REFERENCES guild(id),
     id BIGINT PRIMARY KEY,
     category_id_for_new_channel BIGINT,
     user_limit INT,
@@ -102,14 +103,15 @@ CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_settings (
 );
 
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_creator_role (
+    guild_id BIGINT REFERENCES guild(id),
     voice_channel_id BIGINT REFERENCES lobby_voice_channel_creator_settings(id),
     role_id BIGINT,
     PRIMARY KEY (voice_channel_id, role_id)
 );
 
 CREATE TABLE IF NOT EXISTS lobby_voice_channel_settings (
-    user_id BIGINT,
     guild_id BIGINT REFERENCES guild(id),
+    user_id BIGINT,
     channel_name TEXT,
     bitrate INT,
     user_limit INT,

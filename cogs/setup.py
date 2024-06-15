@@ -538,13 +538,13 @@ class SetupBot(commands.Cog):
         channels_creators_ids = map(int, channels_creators_ids)
         for channel_creator_id in channels_creators_ids:
             query = ("INSERT INTO lobby_voice_channel_creator_settings (id, channel_with_role_prefix, "
-                     "channel_without_role_prefix) "
-                     "VALUES ($1, $2, $3) "
+                     "channel_without_role_prefix, guild_id) "
+                     "VALUES ($1, $2, $3, $4) "
                      "ON CONFLICT (id) DO UPDATE "
-                     "SET channel_with_role_prefix = $2, channel_without_role_prefix = $3")
-
+                     "SET channel_with_role_prefix = $2, channel_without_role_prefix = $3, guild_id = $4")
             await self.pool.execute(query, channel_creator_id,
-                                    with_role, without_role)
+                                    with_role, without_role,
+                                    ctx.guild.id)
 
         await ctx.send("Настройки сохранены", ephemeral=True)
 
@@ -572,13 +572,13 @@ class SetupBot(commands.Cog):
         user_limit = map(int, user_limit)
         for channel_creator_id, limit in zip(channels_creators_ids, user_limit):
             query = ("INSERT INTO lobby_voice_channel_creator_settings(id, category_id_for_new_channel,"
-                     "user_limit, custom) "
-                     "VALUES ($1, $2, $3, $4) "
+                     "user_limit, custom, guild_id) "
+                     "VALUES ($1, $2, $3, $4, $5) "
                      "ON CONFLICT (id) DO "
-                     "UPDATE SET category_id_for_new_channel = $2, user_limit = $3, custom = $4")
+                     "UPDATE SET category_id_for_new_channel = $2, user_limit = $3, custom = $4, guild_id = $5")
             await self.pool.execute(query, channel_creator_id,
                                     category_id, limit,
-                                    custom)
+                                    custom, ctx.guild.id)
 
         await ctx.send("Настройки сохранены", ephemeral=True)
 
@@ -605,12 +605,13 @@ class SetupBot(commands.Cog):
         channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
         channels_creators_ids = map(int, channels_creators_ids)
         for channel_creator_id in channels_creators_ids:
-            query = ("INSERT INTO lobby_voice_channel_creator_settings (id, text_channel_id, log_needed) "
-                     "VALUES ($1, $2, $3) "
+            query = ("INSERT INTO lobby_voice_channel_creator_settings (id, text_channel_id, log_needed, guild_id) "
+                     "VALUES ($1, $2, $3, $4) "
                      "ON CONFLICT (id) DO UPDATE "
-                     "SET text_channel_id = $2, log_needed = $3")
+                     "SET text_channel_id = $2, log_needed = $3, guild_id = $4")
             await self.pool.execute(query, channel_creator_id,
-                                    text_channel_id, log_needed)
+                                    text_channel_id, log_needed,
+                                    ctx.guild.id)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
@@ -630,12 +631,12 @@ class SetupBot(commands.Cog):
         channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
         channels_creators_ids = map(int, channels_creators_ids)
         for channel_creator_id in channels_creators_ids:
-            query = ("INSERT INTO lobby_voice_channel_creator_settings (id, default_name) "
-                     "VALUES ($1, $2) "
+            query = ("INSERT INTO lobby_voice_channel_creator_settings (id, default_name, guild_id) "
+                     "VALUES ($1, $2, $3) "
                      "ON CONFLICT (id) DO "
-                     "UPDATE SET default_name = $2")
+                     "UPDATE SET default_name = $2, guild_id = $3")
             await self.pool.execute(query, channel_creator_id,
-                                    name)
+                                    name, ctx.guild.id)
 
         await ctx.send("Настройки сохранены", ephemeral=True)
 
@@ -656,12 +657,12 @@ class SetupBot(commands.Cog):
         channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
         channels_creators_ids = map(int, channels_creators_ids)
         for channel_creator_id in channels_creators_ids:
-            query = ("INSERT INTO lobby_voice_channel_creator_settings (id, role_not_found_message) "
-                     "VALUES ($1, $2) "
+            query = ("INSERT INTO lobby_voice_channel_creator_settings (id, role_not_found_message, guild_id) "
+                     "VALUES ($1, $2, $3) "
                      "ON CONFLICT (id) DO "
-                     "UPDATE SET role_not_found_message = $3")
+                     "UPDATE SET role_not_found_message = $2, guild_id = $3")
             await self.pool.execute(query, channel_creator_id,
-                                    message)
+                                    message, ctx.guild.id)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
@@ -686,11 +687,11 @@ class SetupBot(commands.Cog):
         roles_ids = list(map(int, roles_ids))
         for channel_creator_id in channels_creators_ids:
             for role_id in roles_ids:
-                query = ("INSERT INTO lobby_voice_channel_creator_role (voice_channel_id, role_id) "
-                         "VALUES ($1, $2) "
+                query = ("INSERT INTO lobby_voice_channel_creator_role (voice_channel_id, role_id, guild_id) "
+                         "VALUES ($1, $2, $3) "
                          "ON CONFLICT (voice_channel_id, role_id) DO NOTHING")
                 await self.pool.execute(query, channel_creator_id,
-                                        role_id)
+                                        role_id, ctx.guild.id)
                 query = ("UPDATE lobby_voice_channel_creator_settings "
                          "SET role_needed = $2 "
                          "WHERE id = $1")
@@ -699,7 +700,7 @@ class SetupBot(commands.Cog):
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
-    async def remove_roles_for_category(self, ctx: disnake.CmdInter,
+    async def remove_roles_for_channels_creators(self, ctx: disnake.CmdInter,
                                         channels_creators_ids, roles_ids=None,
                                         role_needed: bool = None):
         """Удалить роль, с которой можно зайти в канал
@@ -757,9 +758,8 @@ class SetupBot(commands.Cog):
 
         query = ("SELECT role_id "
                  "FROM lobby_voice_channel_creator_role "
-                 "WHERE voice_channel_id = $1 and guild_id = $2")
-        result = await self.pool.fetch(query, channel_id,
-                                       ctx.guild.id)
+                 "WHERE voice_channel_id = $1")
+        result = await self.pool.fetch(query, channel_id)
         roles_ids = []
         if not result:
             embed = disnake.Embed(title=f"Роли канала {ctx.guild.get_channel(channel_id)}", color=disnake.Color.red())

@@ -390,7 +390,8 @@ class Lobby(commands.Cog):
                     overwrites = await self.lobby_settings.get_channel_overwrites(category, member)
                     hello_embed = generate_initial_embed_message(member)
                     if custom:
-                        channel_name, bitrate, user_limit = await self.lobby_settings.get_custom_channel_settings(guild_id, member)
+                        channel_name, bitrate, user_limit = await self.lobby_settings.get_custom_channel_settings(
+                            guild_id, member)
                         voice_channel = await self.create_voice_channel(member=member, category=category,
                                                                         overwrites=overwrites, custom=True,
                                                                         custom_channel_name=channel_name,
@@ -482,6 +483,6 @@ class Lobby(commands.Cog):
                 if message:
                     await self.lobby_settings.update_lobby_info_message(message, current.channel)
 
-                    
+
 def setup(bot):
     bot.add_cog(Lobby(bot))
