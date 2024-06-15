@@ -345,29 +345,28 @@ class Lobby(commands.Cog):
         if before.channel:
             print(f"Before channel {before.channel.name}")
             voice_creator_id = await self.lobby_settings.get_channel_creator_id(before.channel.id)
-            if not voice_creator_id:
-                return
-            print("Left lobby room")
-            if not before.channel.members:
-                await before.channel.edit(overwrites=temp_overwrites)
-                print("Before channel is empty. Deleting")
-                message = await self.lobby_settings.get_lobby_info_message(before.channel)
-                if message:
-                    await self.lobby_settings.delete_message_id_from_db(message.id)
-                    await message.delete()
-                    print("Lobby info message deleted")
-                await self.lobby_settings.delete_voice_channel_author_id(before.channel)
-                await self.lobby_settings.delete_created_voice_channel_from_db(before.channel)
-                print("[2] Deleting channel")
-                try:
-                    await before.channel.delete()
-                except disnake.errors.NotFound:
-                    print(f"Error while deleting channel")
-            elif before.channel.members:
-                print("Before channel is not empty. Updating lobby info")
-                message = await self.lobby_settings.get_lobby_info_message(before.channel)
-                if message:
-                    await self.lobby_settings.update_lobby_info_message(message, before.channel)
+            if voice_creator_id:
+                print("Left lobby room")
+                if not before.channel.members:
+                    await before.channel.edit(overwrites=temp_overwrites)
+                    print("Before channel is empty. Deleting")
+                    message = await self.lobby_settings.get_lobby_info_message(before.channel)
+                    if message:
+                        await self.lobby_settings.delete_message_id_from_db(message.id)
+                        await message.delete()
+                        print("Lobby info message deleted")
+                    await self.lobby_settings.delete_voice_channel_author_id(before.channel)
+                    await self.lobby_settings.delete_created_voice_channel_from_db(before.channel)
+                    print("[2] Deleting channel")
+                    try:
+                        await before.channel.delete()
+                    except disnake.errors.NotFound:
+                        print(f"Error while deleting channel")
+                elif before.channel.members:
+                    print("Before channel is not empty. Updating lobby info")
+                    message = await self.lobby_settings.get_lobby_info_message(before.channel)
+                    if message:
+                        await self.lobby_settings.update_lobby_info_message(message, before.channel)
 
         if current.channel:
             print(f"Current channel {current.channel.name}")
