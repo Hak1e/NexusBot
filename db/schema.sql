@@ -77,7 +77,8 @@ CREATE TABLE IF NOT EXISTS journal (
 
 CREATE TABLE IF NOT EXISTS journal_log_channel (
     guild_id BIGINT REFERENCES guild(id),
-    id BIGINT PRIMARY KEY
+    id BIGINT,
+    PRIMARY KEY (guild_id, id)
 );
 
 -- CREATE TABLE IF NOT EXISTS error_logs_channel (
@@ -207,7 +208,7 @@ CREATE TABLE IF NOT EXISTS ticket_user_button_cooldown (
     PRIMARY KEY (guild_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS ticket_button_emojis (
+CREATE TABLE IF NOT EXISTS ticket_button_emoji (
     guild_id BIGINT REFERENCES guild(id) PRIMARY KEY,
     question_button TEXT,
     report_button TEXT,
