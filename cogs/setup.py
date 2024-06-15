@@ -61,84 +61,84 @@ class SetupBot(commands.Cog):
         self.sent_messages = []
 
     # @commands.slash_command()
-    async def select_roles(self, ctx: disnake.CommandInteraction, roles_reverse: bool = True):
-        """Настройки временного канала. Выбор ролей для доступа ко временному текстовому каналу
-        Parameters
-        ----------
-        ctx: command ctx
-        roles_reverse: Сортировка ролей. По стандарту (True) роли сверху вниз
-        """
-        await ctx.send("Выберите роли, которые будут получать уведомление при создании тикета:")
-        await ctx.delete_original_message(delay=10)
-
-        roles = ctx.guild.roles
-        if roles_reverse:
-            roles.reverse()
-
-        role_chunks = [roles[i:i + MAX_VIEWS_IN_MENU - 1] for i in range(1, len(roles), MAX_VIEWS_IN_MENU)]
-        view = disnake.ui.View(timeout=None)
-
-        loop_run_times = 1
-        if len(role_chunks) > 5:
-            loop_run_times = len(role_chunks) // MAX_BUTTONS_COUNT + 1
-
-        row = 1
-        chunk_position = 0
-        while loop_run_times > 0:
-            while chunk_position <= len(role_chunks):
-                current_number_of_buttons = len(view.children)
-
-                if chunk_position == len(role_chunks):
-                    self.sent_messages.append(await ctx.channel.send(view=view))
-                    self.view_list.append(view)
-                    loop_run_times -= 1
-
-                elif current_number_of_buttons < MAX_BUTTONS_COUNT:
-                    view.add_item(SelectRoles(role_chunks[chunk_position], row))
-                    row += 1
-
-                else:
-                    self.sent_messages.append(await ctx.channel.send(view=view))
-                    self.view_list.append(view)
-                    loop_run_times -= 1
-                    view = disnake.ui.View(timeout=None)
-                    break
-
-                chunk_position += 1
-
-        self.sent_messages.append(
-            await ctx.channel.send(
-                "Нажмите кнопку ниже для продолжения",
-                components=[
-                    disnake.ui.Button(
-                        label="Next",
-                        style=disnake.ButtonStyle.primary,
-                        custom_id="next_button"
-                    )
-                ]
-            )
-        )
-
-    # @commands.Cog.listener()
-    async def on_button_click(self, ctx: disnake.MessageInteraction):
-        if ctx.component.custom_id == "next_button":
-            all_selected_roles_id = []
-
-            for view in self.view_list:
-                for child in view.children:
-                    if isinstance(child, SelectRoles):
-                        all_selected_roles_id.extend([int(role_id) for role_id in child.selected_roles_id])
-
-            query = "UPDATE text_channels " \
-                    "SET roles_id_to_mention = roles_id_to_mention || $2 " \
-                    "WHERE guild_id = $1"
-            await self.pool.execute(query, ctx.guild.id,
-                                    all_selected_roles_id)
-
-            for message in self.sent_messages:
-                await message.delete()
-
-            await ctx.send("Настройка завершена\nКонец настройки", ephemeral=True)
+    # async def select_roles(self, ctx: disnake.CommandInteraction, roles_reverse: bool = True):
+    #     """Настройки временного канала. Выбор ролей для доступа ко временному текстовому каналу
+    #     Parameters
+    #     ----------
+    #     ctx: command ctx
+    #     roles_reverse: Сортировка ролей. По стандарту (True) роли сверху вниз
+    #     """
+    #     await ctx.send("Выберите роли, которые будут получать уведомление при создании тикета:")
+    #     await ctx.delete_original_message(delay=10)
+    #
+    #     roles = ctx.guild.roles
+    #     if roles_reverse:
+    #         roles.reverse()
+    #
+    #     role_chunks = [roles[i:i + MAX_VIEWS_IN_MENU - 1] for i in range(1, len(roles), MAX_VIEWS_IN_MENU)]
+    #     view = disnake.ui.View(timeout=None)
+    #
+    #     loop_run_times = 1
+    #     if len(role_chunks) > 5:
+    #         loop_run_times = len(role_chunks) // MAX_BUTTONS_COUNT + 1
+    #
+    #     row = 1
+    #     chunk_position = 0
+    #     while loop_run_times > 0:
+    #         while chunk_position <= len(role_chunks):
+    #             current_number_of_buttons = len(view.children)
+    #
+    #             if chunk_position == len(role_chunks):
+    #                 self.sent_messages.append(await ctx.channel.send(view=view))
+    #                 self.view_list.append(view)
+    #                 loop_run_times -= 1
+    #
+    #             elif current_number_of_buttons < MAX_BUTTONS_COUNT:
+    #                 view.add_item(SelectRoles(role_chunks[chunk_position], row))
+    #                 row += 1
+    #
+    #             else:
+    #                 self.sent_messages.append(await ctx.channel.send(view=view))
+    #                 self.view_list.append(view)
+    #                 loop_run_times -= 1
+    #                 view = disnake.ui.View(timeout=None)
+    #                 break
+    #
+    #             chunk_position += 1
+    #
+    #     self.sent_messages.append(
+    #         await ctx.channel.send(
+    #             "Нажмите кнопку ниже для продолжения",
+    #             components=[
+    #                 disnake.ui.Button(
+    #                     label="Next",
+    #                     style=disnake.ButtonStyle.primary,
+    #                     custom_id="next_button"
+    #                 )
+    #             ]
+    #         )
+    #     )
+    #
+    # # @commands.Cog.listener()
+    # async def on_button_click(self, ctx: disnake.MessageInteraction):
+    #     if ctx.component.custom_id == "next_button":
+    #         all_selected_roles_id = []
+    #
+    #         for view in self.view_list:
+    #             for child in view.children:
+    #                 if isinstance(child, SelectRoles):
+    #                     all_selected_roles_id.extend([int(role_id) for role_id in child.selected_roles_id])
+    #
+    #         query = "UPDATE text_channels " \
+    #                 "SET roles_id_to_mention = roles_id_to_mention || $2 " \
+    #                 "WHERE guild_id = $1"
+    #         await self.pool.execute(query, ctx.guild.id,
+    #                                 all_selected_roles_id)
+    #
+    #         for message in self.sent_messages:
+    #             await message.delete()
+    #
+    #         await ctx.send("Настройка завершена\nКонец настройки", ephemeral=True)
 
     async def wait_for_message(self, ctx):
         def check(msg):
@@ -169,24 +169,6 @@ class SetupBot(commands.Cog):
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @set.sub_command()
-    async def error_logs_channel(self, ctx: disnake.CmdInter,
-                                 channel: disnake.TextChannel):
-        """Указать канал, в который будет отправляться ошибка. Доступно только создателю
-
-        Parameters
-        ----------
-        ctx: command interaction
-        channel: ID канала
-        """
-        channel_id = channel.id or int(channel)  # type: ignore
-        query = ("INSERT INTO error_logs_channel (guild_id, channel_id) "
-                 "VALUES ($1, $2) "
-                 "ON CONFLICT (guild_id) DO "
-                 "UPDATE SET channel_id = $2")
-        await self.pool.execute(query, ctx.guild.id, channel_id)
-        await ctx.send("Настройки сохранены", ephemeral=True)
-
-    @set.sub_command()
     async def goodbye_channel(self, ctx: disnake.CommandInteraction,
                               channel: disnake.TextChannel):
         """Указать канал, в котором будет лог вышедших пользователей
@@ -208,20 +190,20 @@ class SetupBot(commands.Cog):
     async def journal_logs(self, ctx: disnake.CmdInter,
                            channel: disnake.TextChannel):
         channel_id = channel.id or int(channel)  # type: ignore
-        query = "INSERT INTO journal_logs (guild_id, channel_id)" \
+        query = "INSERT INTO journal_log_channel (guild_id, id)" \
                 "VALUES ($1, $2)" \
-                "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET channel_id = $2"
+                "ON CONFLICT (id) DO " \
+                "UPDATE SET id = $2"
 
         await self.pool.execute(query, ctx.guild.id, channel_id)
 
     # region Tickets
     @commands.slash_command()
-    async def tickets(self, ctx: disnake.CmdInter):
+    async def ticket(self, ctx: disnake.CmdInter):
         """Настройка тикетов"""
         pass
 
-    @tickets.sub_command()
+    @ticket.sub_command()
     async def cooldown(self, ctx: disnake.CmdInter,
                        button_cooldown):
         """Настройка кулдауна кнопок тикетов
@@ -231,39 +213,41 @@ class SetupBot(commands.Cog):
         ctx: command interaction
         button_cooldown: Настройка кулдауна нажатия на кнопку
         """
-        query = "INSERT INTO tickets (guild_id, button_cooldown)" \
+        query = "INSERT INTO ticket (guild_id, button_cooldown)" \
                 "VALUES ($1, $2)" \
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET button_cooldown = $2"
         await self.pool.execute(query, ctx.guild.id, int(button_cooldown))
         await ctx.send("Настройки сохранены", ephemeral=True)
 
-    @tickets.sub_command()
+    @ticket.sub_command()
     async def categories(self, ctx: disnake.CmdInter,
-                         tickets_category: disnake.CategoryChannel = None,
-                         closed_tickets_category: disnake.CategoryChannel = None):
+                         ticket_category: disnake.CategoryChannel = None,
+                         closed_ticket_category: disnake.CategoryChannel = None):
         """Настройка категорий тикетов
 
         Parameters
         ----------
         ctx: command interaction
-        tickets_category: Указать категорию тикетов
-        closed_tickets_category: Указать категорию закрытых тикетов
+        ticket_category: Указать категорию тикетов
+        closed_ticket_category: Указать категорию закрытых тикетов
         """
-        tickets_category_id = tickets_category.id or int(tickets_category)  # type: ignore
-        closed_tickets_category_id = closed_tickets_category.id or int(closed_tickets_category)  # type: ignore
-        if tickets_category_id:
-            query = "INSERT INTO tickets (guild_id, tickets_category_id)" \
+        ticket_category_id = ticket_category.id or int(ticket_category)  # type: ignore
+        closed_ticket_category_id = closed_ticket_category.id or int(closed_ticket_category)  # type: ignore
+        if ticket_category_id:
+            query = "INSERT INTO ticket (guild_id, category_id)" \
                     "VALUES ($1, $2)" \
                     "ON CONFLICT (guild_id) DO " \
-                    "UPDATE SET tickets_category_id = $2"
-            await self.pool.execute(query, ctx.guild.id, int(tickets_category_id))
-        if closed_tickets_category_id:
-            query = "INSERT INTO tickets (guild_id, closed_tickets_category_id)" \
+                    "UPDATE SET category_id = $2"
+            await self.pool.execute(query, ctx.guild.id,
+                                    ticket_category_id)
+        if closed_ticket_category_id:
+            query = "INSERT INTO ticket (guild_id, closed_ticket_category_id)" \
                     "VALUES ($1, $2)" \
                     "ON CONFLICT (guild_id) DO " \
-                    "UPDATE SET closed_tickets_category_id = $2"
-            await self.pool.execute(query, ctx.guild.id, int(closed_tickets_category_id))
+                    "UPDATE SET closed_ticket_category_id = $2"
+            await self.pool.execute(query, ctx.guild.id,
+                                    closed_ticket_category_id)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @staticmethod
@@ -277,7 +261,7 @@ class SetupBot(commands.Cog):
 
         return roles_ids
 
-    @tickets.sub_command()
+    @ticket.sub_command()
     async def roles(self, ctx: disnake.CmdInter,
                     question_roles_ids=None, report_roles_ids=None,
                     offer_roles_ids=None):
@@ -291,7 +275,7 @@ class SetupBot(commands.Cog):
         offer_roles_ids: Указать роли или их ID для предложения. Перечислить через пробел
         """
         if question_roles_ids:
-            query = "INSERT INTO tickets (guild_id, question_roles_ids)" \
+            query = "INSERT INTO ticket_roles (guild_id, question_roles_ids)" \
                     "VALUES ($1, $2)" \
                     "ON CONFLICT (guild_id) DO " \
                     "UPDATE SET question_roles_ids = $2"
@@ -299,7 +283,7 @@ class SetupBot(commands.Cog):
                                     await self.get_roles_id(question_roles_ids.split()))
 
         if report_roles_ids:
-            query = "INSERT INTO tickets (guild_id, report_roles_ids)" \
+            query = "INSERT INTO ticket_roles (guild_id, report_roles_ids)" \
                     "VALUES ($1, $2)" \
                     "ON CONFLICT (guild_id) DO " \
                     "UPDATE SET report_roles_ids = $2"
@@ -307,7 +291,7 @@ class SetupBot(commands.Cog):
                                     await self.get_roles_id(report_roles_ids.split()))
 
         if offer_roles_ids:
-            query = "INSERT INTO tickets (guild_id, offer_roles_ids)" \
+            query = "INSERT INTO ticket_roles (guild_id, offer_roles_ids)" \
                     "VALUES ($1, $2)" \
                     "ON CONFLICT (guild_id) DO " \
                     "UPDATE SET offer_roles_ids = $2"
@@ -316,12 +300,12 @@ class SetupBot(commands.Cog):
 
         await ctx.send("Настройки сохранены", ephemeral=True)
 
-    @tickets.sub_command()
+    @ticket.sub_command()
     async def show_roles(self, ctx: disnake.CmdInter,
                          ephemeral: bool = True):
         """Показать роли, которые имеют доступ к тикетам"""
         question_roles_id_query = ("SELECT question_roles_ids "
-                                   "FROM tickets "
+                                   "FROM ticket_roles "
                                    "WHERE guild_id = $1")
         question_roles_ids = await self.pool.fetch(question_roles_id_query, ctx.guild.id)
         question_roles = []
@@ -331,7 +315,7 @@ class SetupBot(commands.Cog):
                     question_roles.append(ctx.guild.get_role(int(role_id)).mention)
 
         report_roles_id_query = ("SELECT report_roles_ids "
-                                 "FROM tickets "
+                                 "FROM ticket_roles "
                                  "WHERE guild_id = $1")
         report_roles_ids = await self.pool.fetch(report_roles_id_query, ctx.guild.id)
         report_roles = []
@@ -341,7 +325,7 @@ class SetupBot(commands.Cog):
                     report_roles.append(ctx.guild.get_role(int(role_id)).mention)
 
         offer_roles_id_query = ("SELECT offer_roles_ids "
-                                "FROM tickets "
+                                "FROM ticket_roles "
                                 "WHERE guild_id = $1")
         offer_roles_ids = await self.pool.fetch(offer_roles_id_query, ctx.guild.id)
         offer_roles = []
@@ -360,7 +344,7 @@ class SetupBot(commands.Cog):
         )
         await ctx.send(embed=embed, ephemeral=ephemeral)
 
-    @tickets.sub_command()
+    @ticket.sub_command()
     async def buttons_emoji(self, ctx: disnake.CmdInter,
                             question_button=None, report_button=None,
                             offer_button=None, close_button=None,
@@ -377,78 +361,53 @@ class SetupBot(commands.Cog):
         delete_button: Кнопка "Удалить тикет"
         """
         if question_button:
-            query = ("INSERT INTO ticket_buttons_emojis (guild_id, question_button_emoji) "
+            query = ("INSERT INTO ticket_button_emoji (guild_id, question_button) "
                      "VALUES ($1, $2) "
                      "ON CONFLICT (guild_id) DO "
-                     "UPDATE SET question_button_emoji = $2")
-            await self.pool.execute(query, ctx.guild.id, question_button)
+                     "UPDATE SET question_button = $2")
+            await self.pool.execute(query, ctx.guild.id,
+                                    question_button)
         if report_button:
-            query = ("INSERT INTO ticket_buttons_emojis (guild_id, report_button_emoji) "
+            query = ("INSERT INTO ticket_button_emoji (guild_id, report_button) "
                      "VALUES ($1, $2) "
                      "ON CONFLICT (guild_id) DO "
-                     "UPDATE SET report_button_emoji = $2")
-            await self.pool.execute(query, ctx.guild.id, report_button)
+                     "UPDATE SET report_button = $2")
+            await self.pool.execute(query, ctx.guild.id,
+                                    report_button)
         if offer_button:
-            query = ("INSERT INTO ticket_buttons_emojis (guild_id, offer_button_emoji) "
+            query = ("INSERT INTO ticket_button_emoji (guild_id, offer_button) "
                      "VALUES ($1, $2) "
                      "ON CONFLICT (guild_id) DO "
-                     "UPDATE SET offer_button_emoji = $2")
-            await self.pool.execute(query, ctx.guild.id, offer_button)
+                     "UPDATE SET offer_button = $2")
+            await self.pool.execute(query, ctx.guild.id,
+                                    offer_button)
         if close_button:
-            query = ("INSERT INTO ticket_buttons_emojis (guild_id, close_button_emoji) "
+            query = ("INSERT INTO ticket_button_emoji (guild_id, close_button) "
                      "VALUES ($1, $2) "
                      "ON CONFLICT (guild_id) DO "
-                     "UPDATE SET close_button_emoji = $2")
-            await self.pool.execute(query, ctx.guild.id, close_button)
+                     "UPDATE SET close_button = $2")
+            await self.pool.execute(query, ctx.guild.id,
+                                    close_button)
         if delete_button:
-            query = ("INSERT INTO ticket_buttons_emojis (guild_id, delete_button_emoji) "
+            query = ("INSERT INTO ticket_button_emoji (guild_id, delete_button) "
                      "VALUES ($1, $2) "
                      "ON CONFLICT (guild_id) DO "
-                     "UPDATE SET delete_button_emoji = $2")
-            await self.pool.execute(query, ctx.guild.id, delete_button)
+                     "UPDATE SET delete_button = $2")
+            await self.pool.execute(query, ctx.guild.id,
+                                    delete_button)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
-    @tickets.sub_command()
+    @ticket.sub_command()
     async def logs(self, ctx: disnake.CmdInter,
                    channel: disnake.TextChannel):
         """Указать канал для логов тикетов"""
         channel_id = channel.id or int(channel)  # type: ignore
-        query = ("INSERT INTO tickets(guild_id, logs_channel_id) "
+        query = ("INSERT INTO ticket(guild_id, logs_channel_id) "
                  "VALUES ($1, $2)"
                  "ON CONFLICT (guild_id) DO "
                  "UPDATE SET logs_channel_id = $2")
-        await self.pool.execute(query, ctx.guild.id, channel_id)
-        await ctx.send("Настройки сохранены", ephemeral=True)
-
-    @tickets.sub_command()
-    async def tickets_category(self, ctx: disnake.CommandInteraction,
-                               category: disnake.CategoryChannel):
-        """Изменить ID категории для создаваемых тикетов"""
-        category_id = category.id or int(category)  # type: ignore
-        query = "INSERT INTO guild_settings (guild_id, tickets_category_id)" \
-                "VALUES ($1, $2)" \
-                "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET tickets_category_id = $2"
-        await self.pool.execute(query, ctx.guild.id, category_id)
-        await ctx.send("Настройки сохранены", ephemeral=True)
-
-    @tickets.sub_command()
-    async def roles_mention(self, ctx: disnake.CommandInteraction,
-                            roles_ids):
-        """Изменить ID ролей для упоминания при создании тикетов
-
-        Parameters
-        ----------
-        ctx: command interaction
-        roles_ids: ID ролей для упоминания
-        """
-        roles_id = [int(role) for role in roles_ids.split()]
-
-        query = "INSERT INTO text_channels (guild_id, roles_id_to_mention)" \
-                "VALUES ($1, $2)" \
-                "ON CONFLICT (guild_id) DO " \
-                "UPDATE SET roles_id_to_mention = $2"
-        await self.pool.execute(query, ctx.guild.id, roles_id)
+        await self.pool.execute(query, ctx.guild.id,
+                                channel_id)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     # endregion
@@ -474,7 +433,8 @@ class SetupBot(commands.Cog):
                 "VALUES ($1, $2, $3)" \
                 "ON CONFLICT (guild_id) DO " \
                 "UPDATE SET _like = $2, dislike = $3"
-        await self.pool.execute(query, ctx.guild.id, like, dislike)
+        await self.pool.execute(query, ctx.guild.id,
+                                like, dislike)
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @creativity.sub_command()
@@ -666,7 +626,7 @@ class SetupBot(commands.Cog):
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
-    async def add_roles_for_channels_creators(self, ctx: disnake.CmdInter,
+    async def add_roles_for_creators(self, ctx: disnake.CmdInter,
                                               channels_creators_ids, roles_ids):
         """Добавить роль, с которой можно зайти в канал
 
@@ -700,7 +660,7 @@ class SetupBot(commands.Cog):
         await ctx.send("Настройки сохранены", ephemeral=True)
 
     @lobby.sub_command()
-    async def remove_roles_for_channels_creators(self, ctx: disnake.CmdInter,
+    async def remove_roles_for_creators(self, ctx: disnake.CmdInter,
                                         channels_creators_ids, roles_ids=None,
                                         role_needed: bool = None):
         """Удалить роль, с которой можно зайти в канал
