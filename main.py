@@ -1,6 +1,9 @@
 from core import Nexus
 import os
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def load_cogs(bot, root_directory):
@@ -16,6 +19,7 @@ async def load_cogs(bot, root_directory):
 
 
 async def main():
+    logging.basicConfig(level=logging.INFO)
     bot = Nexus()
     await bot.connect_to_db()
     await load_cogs(bot, "./cogs/")

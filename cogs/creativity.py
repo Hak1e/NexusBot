@@ -9,26 +9,30 @@ async def send_embed(ctx: disnake.CommandInteraction, bot: commands.InteractionB
                      image_url, description,
                      channel_id, reply_message,
                      like, dislike,
-                     title=None):
+                     pool, title=None):
     channel = bot.get_channel(channel_id)
 
     if channel is None:
-        await ctx.send("Не удалось найти канал для отправки. Запустите команду `/setup`")
+        await ctx.send("Не удалось найти канал для отправки", ephemeral=True)
         return
 
+    query = ("SELECT text "
+             "FROM creativity_footer_text "
+             "WHERE guild_id = $1")
+    footer_text = await pool.fetchval(query, ctx.guild.id)
     embed = (
         disnake.Embed(
             title=title if title else None,
             description=description,
             color=0x3f8fdf
         )
-        .set_footer(text="Для доступа к каналу напишите machuku")
+        .set_footer(text=footer_text if footer_text else "")
         .set_image(url=image_url)
     )
     message = await channel.send(embed=embed)
     await message.add_reaction(emoji=like)
     await message.add_reaction(emoji=dislike)
-    await ctx.send(reply_message)
+    await ctx.send(reply_message, ephemeral=True)
 
 
 class Creativity(commands.Cog):
@@ -37,17 +41,14 @@ class Creativity(commands.Cog):
         self.pool = bot.get_pool()
 
     async def load_emoji_reactions(self, ctx):
-        query = "SELECT _like, _dislike " \
-                "FROM emoji_reactions " \
+        query = "SELECT _like, dislike " \
+                "FROM emoji_reaction " \
                 "WHERE guild_id = $1"
         result = await self.pool.fetch(query, ctx.guild.id)
-        if result[0][0] and result[0][1]:
-            like, dislike = result[0]["_like"], result[0]["_dislike"]
-            return like, dislike
-        else:
-            error_message = "Ошибка загрузки реакций. Необходима настройка"
-            await ctx.send(error_message, ephemeral=True)
-            raise DataBaseFetchError(error_message)
+        if not result:
+            return await ctx.send("Ошибка загрузки реакций", ephemeral=True)
+        like, dislike = result[0]["_like"], result[0]["dislike"]
+        return like, dislike
 
     @commands.slash_command()
     async def art(self, ctx: disnake.CommandInteraction,
@@ -63,8 +64,8 @@ class Creativity(commands.Cog):
         comment: Комментарий к арту
         """
 
-        query = "SELECT art_channel_id " \
-                "FROM text_channels " \
+        query = "SELECT id " \
+                "FROM art_channel " \
                 "WHERE guild_id = $1"
         art_channel_id = await self.pool.fetchval(query, ctx.guild.id)
         if not art_channel_id:
@@ -81,7 +82,7 @@ class Creativity(commands.Cog):
                          title="Новый арт!", image_url=image_url,
                          description=description, channel_id=art_channel_id,
                          reply_message="Арт успешно опубликован", like=like,
-                         dislike=dislike)
+                         dislike=dislike, pool=self.pool)
 
     @commands.slash_command()
     async def meme(self, ctx: disnake.CommandInteraction,
@@ -97,7 +98,9 @@ class Creativity(commands.Cog):
         comment: Комментарий к мему
         """
 
-        query = "SELECT meme_channel_id FROM text_channels WHERE guild_id = $1"
+        query = ("SELECT id "
+                 "FROM meme_channel "
+                 "WHERE guild_id = $1")
         meme_channel_id = await self.pool.fetchval(query, ctx.guild.id)
         if not meme_channel_id:
             await ctx.send("Не найден канал для мемов", ephemeral=True)
@@ -114,7 +117,7 @@ class Creativity(commands.Cog):
                          image_url=image_url,
                          description=description, channel_id=meme_channel_id,
                          reply_message="Мем успешно опубликован", like=like,
-                         dislike=dislike)
+                         dislike=dislike, pool=self.pool)
 
 
 def setup(bot):

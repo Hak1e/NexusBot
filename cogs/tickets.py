@@ -11,7 +11,7 @@ async def send_ticket_log(pool, ctx,
                           title, description,
                           color):
     query = ("SELECT logs_channel_id "
-             "FROM tickets "
+             "FROM ticket "
              "WHERE guild_id = $1")
     logs_channel_id = await pool.fetchval(query, ctx.guild.id)
     if logs_channel_id:
@@ -26,8 +26,8 @@ async def send_ticket_log(pool, ctx,
 
 
 async def get_ticket_number(pool, ctx):
-    query = ("SELECT total_created_tickets_number "
-             "FROM tickets "
+    query = ("SELECT number "
+             "FROM ticket "
              "WHERE guild_id = $1")
     return await pool.fetchval(query, ctx.guild.id)
 
@@ -78,8 +78,8 @@ class ModalWindow(Modal):
                     inline=False
                 )
             )
-            query = ("SELECT close_button_emoji "
-                     "FROM ticket_buttons_emojis "
+            query = ("SELECT close_button "
+                     "FROM ticket_button_emoji "
                      "WHERE guild_id = $1")
             emoji = await self.pool.fetchval(query, ctx.guild.id)
             await _channel.send(
@@ -97,15 +97,15 @@ class ModalWindow(Modal):
 
             await ctx.edit_original_response(f"Билет создан: {channel.mention}")
 
-        query = "SELECT tickets_category_id " \
-                "FROM tickets " \
+        query = "SELECT category_id " \
+                "FROM ticket " \
                 "WHERE guild_id = $1"
         tickets_category_id = await self.pool.fetchval(query, ctx.guild.id)
         no_settings_found_message = "Не найдены роли для упоминания. Обратитесь к администратору"
 
         if self.button_category == ButtonsIDs.QUESTION:
             query = ("SELECT question_roles_ids "
-                     "FROM tickets "
+                     "FROM ticket_roles "
                      "WHERE guild_id = $1")
             result = await self.pool.fetchval(query, ctx.guild.id)
 
@@ -121,7 +121,7 @@ class ModalWindow(Modal):
 
         elif self.button_category == ButtonsIDs.REPORT:
             query = ("SELECT report_roles_ids "
-                     "FROM tickets "
+                     "FROM ticket_roles "
                      "WHERE guild_id = $1")
             roles_id = list(await self.pool.fetchval(query, ctx.guild.id))
 
@@ -136,7 +136,7 @@ class ModalWindow(Modal):
 
         elif self.button_category == ButtonsIDs.OFFER:
             query = ("SELECT offer_roles_ids "
-                     "FROM tickets "
+                     "FROM ticket_roles "
                      "WHERE guild_id = $1")
             roles_id = list(await self.pool.fetchval(query, ctx.guild.id))
 
@@ -180,8 +180,8 @@ class ModalWindow(Modal):
         for role in roles:
             overwrites[role] = ticket_overwrite
 
-        query = ("UPDATE tickets "
-                 "SET total_created_tickets_number = total_created_tickets_number + 1 "
+        query = ("UPDATE ticket "
+                 "SET number = number + 1 "
                  "WHERE guild_id = $1")
         await self.pool.execute(query, ctx.guild.id)
 
@@ -214,18 +214,18 @@ class TicketsCommands(commands.Cog):
         ctx: command interaction
         image_url: Добавить изображение
         """
-        query = ("SELECT question_button_emoji "
-                 "FROM ticket_buttons_emojis "
+        query = ("SELECT question_button "
+                 "FROM ticket_button_emoji "
                  "WHERE guild_id = $1")
         question_button_emoji = await self.pool.fetchval(query, ctx.guild.id)
 
-        query = ("SELECT report_button_emoji "
-                 "FROM ticket_buttons_emojis "
+        query = ("SELECT report_button "
+                 "FROM ticket_button_emoji "
                  "WHERE guild_id = $1")
         report_button_emoji = await self.pool.fetchval(query, ctx.guild.id)
 
-        query = ("SELECT offer_button_emoji "
-                 "FROM ticket_buttons_emojis "
+        query = ("SELECT offer_button "
+                 "FROM ticket_button_emoji "
                  "WHERE guild_id = $1")
         offer_button_emoji = await self.pool.fetchval(query, ctx.guild.id)
 
@@ -270,8 +270,8 @@ class TicketsCommands(commands.Cog):
                            )
 
     async def is_ticket(self, ctx):
-        query = "SELECT tickets_category_id " \
-                "FROM guild_settings " \
+        query = "SELECT category_id " \
+                "FROM ticket " \
                 "WHERE guild_id = $1"
         category_id = await self.pool.fetchval(query, ctx.guild.id)
 
@@ -337,8 +337,8 @@ class Tickets(commands.Cog):
                 await channel.set_permissions(key, view_channel=True,
                                               send_messages=False)
 
-            query = ("SELECT closed_tickets_category_id "
-                     "FROM tickets "
+            query = ("SELECT closed_ticket_category_id "
+                     "FROM ticket "
                      "WHERE guild_id = $1")
             closed_tickets_category_id = await self.pool.fetchval(query, guild_id)
             if closed_tickets_category_id:
@@ -348,8 +348,8 @@ class Tickets(commands.Cog):
             embed = disnake.Embed(description=f"Билет закрыт пользователем {ctx.author.name}.\n"
                                               f"Нажмите на кнопку для удаления канала")
 
-            query = ("SELECT delete_button_emoji "
-                     "FROM ticket_buttons_emojis "
+            query = ("SELECT delete_button "
+                     "FROM ticket_button_emoji "
                      "WHERE guild_id = $1")
             emoji = await self.pool.fetchval(query, ctx.guild.id)
 
