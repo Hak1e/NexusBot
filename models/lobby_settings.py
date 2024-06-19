@@ -8,7 +8,7 @@ import asyncio
 class AuthorSettings:
     def __init__(self, bot):
         self.bot = bot
-        self.pool: asyncpg.Pool = self.bot.get_pool()
+        self.pool: asyncpg.Pool = bot.get_pool()
 
     async def get_voice_channel_author_id(self, voice_channel):
         get_channel_author_id = "SELECT user_id " \
