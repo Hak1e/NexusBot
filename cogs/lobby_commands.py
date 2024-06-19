@@ -62,11 +62,11 @@ class ChannelCommands(commands.Cog):
         if ctx.author.id == member.id:
             await ctx.send("Вы не можете забанить самого себя", ephemeral=True)
             return
+        await ctx.channel.set_permissions(member, connent=False)
+        await self.author_settings.update_voice_channel_overwrites(ctx.channel)
+        await ctx.send(f"{member.mention} забанен в этом голосовом канале", ephemeral=True)
         if member in ctx.channel.members:
-            await ctx.channel.set_permissions(member, connent=False)
             await member.move_to(None)  # type: ignore
-            await self.author_settings.update_voice_channel_overwrites(ctx.channel)
-            await ctx.send(f"{member.mention} забанен в этом голосовом канале", ephemeral=True)
 
     @voice_channel.sub_command(name="unban")
     async def vc_unban(self, ctx):
