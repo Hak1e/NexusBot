@@ -44,7 +44,7 @@ class ChannelCommands(commands.Cog):
     @voice_channel.sub_command(name="kick")
     async def vc_kick(self, ctx: disnake.CmdInter,
                       member: disnake.Member):
-        """Выгнать участника из своего канала"""
+        """Выгнать участника из канала"""
         if not await self.is_channel_author(ctx):
             return await ctx.send("Вы можете использовать команды только в своём канале", ephemeral=True)
         if ctx.author.id == member.id:
@@ -57,6 +57,7 @@ class ChannelCommands(commands.Cog):
     @voice_channel.sub_command(name="ban")
     async def vc_ban(self, ctx,
                      member: disnake.Member):
+        """Заблокировать участника канале"""
         if not await self.is_channel_author(ctx):
             return await ctx.send("Вы можете использовать команды только в своём канале", ephemeral=True)
         if ctx.author.id == member.id:
@@ -70,6 +71,7 @@ class ChannelCommands(commands.Cog):
 
     @voice_channel.sub_command(name="unban")
     async def vc_unban(self, ctx):
+        """Разблокировать участника канале"""
         if not await self.is_channel_author(ctx):
             return await ctx.send("Вы можете использовать команды только в своём канале", ephemeral=True)
         channel: disnake.VoiceChannel = ctx.channel  # type: ignore
@@ -88,6 +90,7 @@ class ChannelCommands(commands.Cog):
     @voice_channel.sub_command()
     async def visible(self, ctx,
                       value: bool):
+        """Сменить видимость канала"""
         if not await self.is_channel_author(ctx):
             return await ctx.send("Вы можете использовать команды только в своём канале", ephemeral=True)
         default_role = ctx.guild.default_role
@@ -100,6 +103,7 @@ class ChannelCommands(commands.Cog):
     @voice_channel.sub_command()
     async def connect(self, ctx,
                       value: bool):
+        """Сменить разрешение на подключение к каналу"""
         if not await self.is_channel_author(ctx):
             return await ctx.send("Вы можете использовать команды только в своём канале", ephemeral=True)
         default_role = ctx.guild.default_role
@@ -112,6 +116,7 @@ class ChannelCommands(commands.Cog):
     @voice_channel.sub_command()
     async def name(self, ctx,
                    value):
+        """Изменить название канала"""
         if not await self.is_channel_author(ctx):
             return await ctx.send("Вы можете использовать команды только в своём канале", ephemeral=True)
         await ctx.channel.edit(name=value)
@@ -122,6 +127,7 @@ class ChannelCommands(commands.Cog):
     @voice_channel.sub_command()
     async def bitrate(self, ctx,
                       value):
+        """Изменить битрейт канала"""
         if not await self.is_channel_author(ctx):
             return await ctx.send("Вы можете использовать команды только в своём канале", ephemeral=True)
         await ctx.channel.edit(bitrate=value)
@@ -132,6 +138,7 @@ class ChannelCommands(commands.Cog):
     @voice_channel.sub_command()
     async def limit(self, ctx,
                     value):
+        """Изменить лимит пользователей в канале"""
         if not await self.is_channel_author(ctx):
             return await ctx.send("Вы можете использовать команды только в своём канале", ephemeral=True)
         await ctx.channel.edit(user_limit=value)
