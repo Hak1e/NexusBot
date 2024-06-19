@@ -82,7 +82,7 @@ class ChannelCommands(commands.Cog):
         if not members:
             return await ctx.send("В настройках канала нет заблокированных участников", ephemeral=True)
         select_menu = MembersSelectMenu(members, self.pool,
-                                        ChannelActions.unban)
+                                        self.bot, ChannelActions.unban)
         view = disnake.ui.View()
         view.add_item(select_menu)
         await ctx.send(view=view, ephemeral=True)
