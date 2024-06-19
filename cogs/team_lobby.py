@@ -49,21 +49,21 @@ class MembersSelectMenu(disnake.ui.Select):
 
     async def callback(self, ctx: disnake.MessageInteraction):
         await ctx.response.defer()
-        selected_members_ids = self.values
+        selected_members_or_roles_ids = self.values
         voice_channel: disnake.VoiceChannel = ctx.author.voice.channel
         if self.action == ChannelActions.unban:
-            for member_id in selected_members_ids:
-                member = ctx.guild.get_member(int(member_id))
-                await voice_channel.set_permissions(member, overwrite=None)
+            for _id in selected_members_or_roles_ids:
+                member_or_role = ctx.guild.get_member(int(_id)) or ctx.guild.get_role(int(_id))
+                await voice_channel.set_permissions(member_or_role, overwrite=None)
         else:
-            for member_id in selected_members_ids:
-                member = ctx.guild.get_member(int(member_id))
+            for _id in selected_members_or_roles_ids:
+                member_or_role = ctx.guild.get_member(int(_id)) or ctx.guild.get_role(int(_id))
                 if self.action == ChannelActions.ban:
-                    await voice_channel.set_permissions(member, connect=False)
-                if member in ctx.channel.members:
-                    await member.move_to(None)  # type: ignore
+                    await voice_channel.set_permissions(member_or_role, connect=False)
+                if member_or_role in ctx.channel.members:
+                    await member_or_role.move_to(None)  # type: ignore
         if not self.action == ChannelActions.kick:
-            await self.update_voice_channel_overwrites(voice_channel)
+            await self.author_settings.update_voice_channel_overwrites(voice_channel)
 
 
 class BaseDashboardButtons(disnake.ui.View):
