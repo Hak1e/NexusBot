@@ -65,7 +65,7 @@ class ChannelCommands(commands.Cog):
             return
         await ctx.channel.set_permissions(member, connect=False)
         await self.author_settings.update_voice_channel_overwrites(ctx.channel)
-        await ctx.send(f"{member.mention} забанен в этом голосовом канале", ephemeral=True)
+        await ctx.send(f"{member.mention} забанен в Вашем голосовом канале", ephemeral=True)
         if member in ctx.channel.members:
             await member.move_to(None)  # type: ignore
 
