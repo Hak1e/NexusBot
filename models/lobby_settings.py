@@ -132,6 +132,8 @@ class LobbyChannelSettings:
         if not message_id:
             return
         channel_creator_id = await self.get_channel_creator_id(voice_channel.id)
+        if not channel_creator_id:
+            return
         text_channel_id = await self.get_text_channel_id(channel_creator_id)
         if not text_channel_id:
             return
