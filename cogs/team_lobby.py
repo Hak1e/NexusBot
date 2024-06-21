@@ -264,6 +264,8 @@ class Lobby(commands.Cog):
         self.bot = bot
         self.pool: asyncpg.Pool = self.bot.get_pool()
         self.lobby_settings = LobbyChannelSettings(bot)
+        self.cached_messages = {}
+        print("Lobby class initialized")
 
     @staticmethod
     def create_lobby_info_embed(member, role: disnake.Role,
@@ -347,10 +349,13 @@ class Lobby(commands.Cog):
             voice_creator_id = await self.lobby_settings.get_channel_creator_id(before.channel.id)
             if voice_creator_id:
                 print("Left lobby room")
+                if before.channel.id in self.cached_messages:
+                    message = self.cached_messages[before.channel.id]
+                else:
+                    message = await self.lobby_settings.get_lobby_info_message(before.channel)
                 if not before.channel.members:
                     await before.channel.edit(overwrites=temp_overwrites)
                     print("Before channel is empty. Deleting")
-                    message = await self.lobby_settings.get_lobby_info_message(before.channel)
                     if message:
                         await self.lobby_settings.delete_message_id_from_db(message.id)
                         await message.delete()
@@ -364,7 +369,6 @@ class Lobby(commands.Cog):
                         print(f"Error while deleting channel")
                 elif before.channel.members:
                     print("Before channel is not empty. Updating lobby info")
-                    message = await self.lobby_settings.get_lobby_info_message(before.channel)
                     if message:
                         await self.lobby_settings.update_lobby_info_message(message, before.channel)
 
@@ -463,6 +467,7 @@ class Lobby(commands.Cog):
                                                              f" настроек. Обратитесь к администратору за помощью")
                                 elif text_channel:
                                     lobby_info_message = await text_channel.send(embed=embed)
+                                    self.cached_messages[voice_channel.id] = lobby_info_message
                                     await self.lobby_settings.save_message_id_to_db(voice_channel, lobby_info_message)
                             buttons = BaseDashboardButtons(self.pool, self.bot)
                             await voice_channel.send(embed=hello_embed, view=buttons)
@@ -478,9 +483,15 @@ class Lobby(commands.Cog):
                 if not voice_creator_id:
                     return
                 print("Joined lobby room")
-                message = await self.lobby_settings.get_lobby_info_message(current.channel)
+                if current.channel.id in self.cached_messages:
+                    message = self.cached_messages[current.channel.id]
+                    await self.lobby_settings.update_lobby_info_message(message, current.channel)
+                else:
+                    message = await self.lobby_settings.get_lobby_info_message(current.channel)
                 if message:
                     await self.lobby_settings.update_lobby_info_message(message, current.channel)
+                    self.cached_messages[current.channel.id] = message
+
 
 
 def setup(bot):
