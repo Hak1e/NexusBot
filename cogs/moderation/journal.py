@@ -71,8 +71,8 @@ class Journal(commands.Cog):
         await self.pool.execute(query, ctx.guild.id,
                                 user.id, note)
 
-        query = ("SELECT channel_id "
-                 "FROM journal_logs "
+        query = ("SELECT id "
+                 "FROM journal_log_channel "
                  "WHERE guild_id = $1")
         channel_id = await self.pool.fetchval(query, ctx.guild.id)
         if channel_id:
@@ -120,8 +120,8 @@ class Journal(commands.Cog):
         await self.pool.execute(query, ctx.guild.id,
                                 user.id, number, new_note)
 
-        query = ("SELECT channel_id "
-                 "FROM journal_logs "
+        query = ("SELECT id "
+                 "FROM journal_log_channel "
                  "WHERE guild_id = $1")
         channel_id = await self.pool.fetchval(query, ctx.guild.id)
         if channel_id:
@@ -170,8 +170,8 @@ class Journal(commands.Cog):
                         "WHERE guild_id = $1 and user_id = $2")
         await self.pool.execute(update_notes, ctx.guild.id, user.id, new_notes)
 
-        query = ("SELECT channel_id "
-                 "FROM journal_logs "
+        query = ("SELECT id "
+                 "FROM journal_log_channel "
                  "WHERE guild_id = $1")
         channel_id = await self.pool.fetchval(query, ctx.guild.id)
         if channel_id:
