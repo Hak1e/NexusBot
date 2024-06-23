@@ -265,7 +265,6 @@ class Lobby(commands.Cog):
         self.pool: asyncpg.Pool = self.bot.get_pool()
         self.lobby_settings = LobbyChannelSettings(bot)
         self.cached_messages = {}
-        print("Lobby class initialized")
 
     @staticmethod
     def create_lobby_info_embed(member, role: disnake.Role,
