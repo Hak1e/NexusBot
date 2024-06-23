@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS guild_member (
     PRIMARY KEY (guild_id, id)
 );
 
+CREATE TABLE IF NOT EXISTS guild_mute_role (
+    guild_id BIGINT REFERENCES guild(id) PRIMARY KEY,
+    id BIGINT UNIQUE
+);
+
 -- CREATE TABLE IF NOT EXISTS guild_restore_role (
 -- --     guild_id BIGINT REFERENCES guild(id),
 -- --     id BIGINT PRIMARY KEY,
