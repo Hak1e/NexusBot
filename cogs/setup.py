@@ -151,6 +151,19 @@ class SetupBot(commands.Cog):
         pass
 
     @set.sub_command()
+    async def mute_role(self, ctx: disnake.CmdInter,
+                        role: disnake.Role):
+        """Указать роль для мьюта участника"""
+        role_id = role.id or int(role)  # type: ignore
+        query = ("INSERT INTO guild_mute_role (guild_id, id) "
+                 "VALUES ($1, $2) "
+                 "ON CONFLICT (guild_id) DO UPDATE "
+                 "SET id = $2")
+        await self.pool.execute(query, ctx.guild.id,
+                                role_id)
+        await ctx.send("Настройки сохранены", ephemeral=True)
+
+    @set.sub_command()
     async def creativity_footer(self, ctx: disnake.CmdInter,
                                 text):
         """Указать текст внизу ембед-сообщения
