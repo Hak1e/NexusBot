@@ -19,7 +19,8 @@ async def load_cogs(bot, root_directory):
 
 
 async def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%d.%m.%Y %H:%M:%S',
+                        filename="lobby.log", level=logging.INFO)
     bot = Nexus()
     await bot.connect_to_db()
     await load_cogs(bot, "./cogs/")
