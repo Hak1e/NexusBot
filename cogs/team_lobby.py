@@ -8,6 +8,9 @@ import enum
 from models.lobby_settings import AuthorSettings, RequestedRole, LobbyChannelSettings
 
 
+MAX_WAIT_TIME = 20
+
+
 def generate_initial_embed_message(member):
     return disnake.Embed(title="Добро пожаловать в комнату", color=disnake.Color.blurple(),
                          description=f"Владелец: {member.mention}\n"
@@ -265,6 +268,7 @@ class Lobby(commands.Cog):
         self.pool: asyncpg.Pool = self.bot.get_pool()
         self.lobby_settings = LobbyChannelSettings(bot)
         self.cached_messages = {}
+        self.queued_message_id = []
 
     @staticmethod
     def create_lobby_info_embed(member, role: disnake.Role,
@@ -344,35 +348,78 @@ class Lobby(commands.Cog):
                            self.bot.user: disnake.PermissionOverwrite(view_channel=True)}
 
         if before.channel:
-            print(f"Before channel {before.channel.name}")
+            logging.info(f"Before channel {before.channel.name}")
             voice_creator_id = await self.lobby_settings.get_channel_creator_id(before.channel.id)
             if voice_creator_id:
-                print("Left lobby room")
+                logging.info("Left lobby room")
+                await asyncio.sleep(1)
                 if before.channel.id in self.cached_messages:
                     message = self.cached_messages[before.channel.id]
+                    logging.info("Found message in cache")
                 else:
                     message = await self.lobby_settings.get_lobby_info_message(before.channel)
+                    logging.info("Fetched message from database")
                 if not before.channel.members:
+                    logging.info("Before channel is empty")
+                    channel_overwrites = before.channel.overwrites
                     await before.channel.edit(overwrites=temp_overwrites)
-                    print("Before channel is empty. Deleting")
+                    counter = 1
+                    message_deleted = False
                     if message:
-                        await self.lobby_settings.delete_message_id_from_db(message.id)
-                        await message.delete()
-                        print("Lobby info message deleted")
-                    await self.lobby_settings.delete_voice_channel_author_id(before.channel)
-                    await self.lobby_settings.delete_created_voice_channel_from_db(before.channel)
-                    print("[2] Deleting channel")
-                    try:
-                        await before.channel.delete()
-                    except disnake.errors.NotFound:
-                        print(f"Error while deleting channel")
+                        logging.info("Message found")
+                        if message.id in self.queued_message_id:
+                            logging.info("Message already in queue")
+                        if message.id not in self.queued_message_id:
+                            self.queued_message_id.append(message.id)
+                            logging.info("Message added in queue")
+                            while True:
+                                if counter > MAX_WAIT_TIME:
+                                    await before.channel.edit(overwrites=channel_overwrites)
+                                    break
+                                try:
+                                    logging.info("Trying to delete message")
+                                    await message.delete()
+                                    message_deleted = True
+                                    logging.info("Message deleted")
+                                    await self.lobby_settings.delete_message_id_from_db(message.id)
+                                    logging.info("Lobby info message deleted from database")
+                                    self.queued_message_id.remove(message.id)
+                                    break
+                                except Exception as e:
+                                    logging.error(f"[{counter}] Error while deleting message: {e}")
+                                    counter += 1
+                                    await asyncio.sleep(1)
+                    else:
+                        logging.info("Message was not found")
+                    if message_deleted:
+                        counter = 0
+                        while True:
+                            if counter >= MAX_WAIT_TIME / 2 + 1:
+                                break
+                            try:
+                                logging.info("[_2_] Deleting voice channel")
+                                await before.channel.delete()
+                                logging.info("Voice channel deleted")
+                                await self.lobby_settings.delete_voice_channel_author_id(before.channel)
+                                logging.info("Deleted voice channel author from database")
+                                await self.lobby_settings.delete_created_voice_channel_from_db(before.channel)
+                                logging.info("Deleted created voice channel from database")
+                                break
+                            except Exception as e:
+                                logging.error(f"[{counter}] Error while deleting voice channel: {e}")
+                                counter += 1
+                                await asyncio.sleep(1)
+                    else:
+                        logging.error("Message was not deleted. Voice channel wouldn't be deleted too")
+                    
                 elif before.channel.members:
-                    print("Before channel is not empty. Updating lobby info")
+                    logging.info("Before channel is not empty. Updating lobby info")
                     if message:
                         await self.lobby_settings.update_lobby_info_message(message, before.channel)
+                        logging.info("Lobby info updated")
 
         if current.channel:
-            print(f"Current channel {current.channel.name}")
+            logging.info(f"Current channel {current.channel.name}")
             query = ("SELECT id, custom "
                      "FROM lobby_voice_channel_creator_settings "
                      "WHERE id = $1")
@@ -380,13 +427,13 @@ class Lobby(commands.Cog):
             if is_voice_creator:
                 voice_creator_id, custom = is_voice_creator
                 if voice_creator_id:
-                    print("Voice creator")
+                    logging.info("Member joined in voice creator")
                     query = ("SELECT category_id_for_new_channel "
                              "FROM lobby_voice_channel_creator_settings "
                              "WHERE id = $1")
                     lobby_category_id = await self.pool.fetchval(query, current.channel.id)
                     if not lobby_category_id:
-                        logging.error(f"Категория для создания каналов не найдена в базе данных")
+                        logging.error(f"Category for new channel was not found in database")
                         return
                     category = member.guild.get_channel(lobby_category_id)
                     overwrites = await self.lobby_settings.get_channel_overwrites(category, member)
@@ -399,18 +446,21 @@ class Lobby(commands.Cog):
                                                                         custom_channel_name=channel_name,
                                                                         bitrate=bitrate, user_limit=user_limit,
                                                                         voice_creator=current.channel)
-                        print("Custom channel created. Trying to move member")
+                        logging.info("Custom channel created. Trying to move member")
                         try:
                             await member.move_to(voice_channel)
-                            print(f"Moved {member.name} to {voice_channel.name}")
-                        except disnake.errors.HTTPException:
-                            print("[1] Deleting channel")
-                            await voice_channel.delete()
-                            return
-                        await asyncio.sleep(1)
-                        if voice_channel.members:
+                            logging.info(f"Moved {member.name} to {voice_channel.name}")
                             await self.lobby_settings.add_lobby_channel_to_db(voice_channel.id, voice_creator_id)
+                            logging.info("Voice channel added to database")
                             await self.lobby_settings.set_voice_channel_author_id(member, voice_channel)
+                            logging.info("Voice channel author id added to database")
+                        except disnake.errors.HTTPException:
+                            logging.error("[_1_] Member left while moving")
+                            await voice_channel.delete()
+                            logging.error("Voice channel deleted")
+                            return
+                        # await asyncio.sleep(1)
+                        if voice_channel.members:
                             buttons = CustomChannelDashboardButtons(self.pool, self.bot)
                             await voice_channel.send(embed=hello_embed, view=buttons)
                     else:
@@ -424,18 +474,21 @@ class Lobby(commands.Cog):
                                                                         user_limit=user_limit,
                                                                         required_role=required_role,
                                                                         voice_creator=current.channel)
-                        print("Channel created. Trying to move member")
+                        logging.info("Voice channel created. Trying to move member")
                         try:
                             await member.move_to(voice_channel)
-                            print(f"Moved {member.name} to {voice_channel.name}")
-                        except disnake.errors.HTTPException:
-                            print("[1] Deleting channel")
-                            await voice_channel.delete()
-                            return
-                        await asyncio.sleep(1)
-                        if voice_channel.members:
+                            logging.info(f"Moved {member.name} to {voice_channel.name}")
                             await self.lobby_settings.add_lobby_channel_to_db(voice_channel.id, voice_creator_id)
+                            logging.info("Voice channel added to database")
                             await self.lobby_settings.set_voice_channel_author_id(member, voice_channel)
+                            logging.info("Voice channel author id added to database")
+                        except disnake.errors.HTTPException:
+                            logging.error("[_1_] Member left while moving")
+                            await voice_channel.delete()
+                            logging.error("Voice channel deleted")
+                            return
+                        # await asyncio.sleep(1)
+                        if voice_channel.members:
                             if required_role == RequestedRole.missing:
                                 query = ("SELECT role_not_found_message "
                                          "FROM lobby_voice_channel_creator_settings "
@@ -456,7 +509,7 @@ class Lobby(commands.Cog):
 
                             lobby_log_needed = await self.lobby_settings.log_needed(voice_creator_id)
                             if lobby_log_needed:
-                                print("Log needed")
+                                logging.info("Lobby info needed")
                                 text_channel_id = await self.lobby_settings.get_text_channel_id(voice_creator_id)
                                 text_channel = member.guild.get_channel(text_channel_id)
                                 await voice_channel.edit(overwrites=overwrites)
@@ -465,32 +518,32 @@ class Lobby(commands.Cog):
                                                              f"Оповещение о создании комнаты не было создано из-за неверных"
                                                              f" настроек. Обратитесь к администратору за помощью")
                                 elif text_channel:
+                                    logging.info("Text channel for lobby info found. Sending message")
                                     lobby_info_message = await text_channel.send(embed=embed)
+                                    logging.info("Message sent")
                                     self.cached_messages[voice_channel.id] = lobby_info_message
                                     await self.lobby_settings.save_message_id_to_db(voice_channel, lobby_info_message)
+                                    logging.info("Sent message cached and saved to database")
                             buttons = BaseDashboardButtons(self.pool, self.bot)
                             await voice_channel.send(embed=hello_embed, view=buttons)
-                    if voice_channel and not voice_channel.members:
-                        print("[3] Пользователя нет в голосовом канале. Канал будет удалён")
-                        try:
-                            await voice_channel.delete()
-                        except disnake.errors.NotFound:
-                            return
 
             else:
                 voice_creator_id = await self.lobby_settings.get_channel_creator_id(current.channel.id)
                 if not voice_creator_id:
                     return
-                print("Joined lobby room")
+                logging.info("Joined lobby room")
                 if current.channel.id in self.cached_messages:
                     message = self.cached_messages[current.channel.id]
+                    logging.info("Found message in cache")
                     await self.lobby_settings.update_lobby_info_message(message, current.channel)
+                    logging.info("Lobby info updated")
                 else:
                     message = await self.lobby_settings.get_lobby_info_message(current.channel)
+                    logging.info("Fetching lobby info from database")
                 if message:
                     await self.lobby_settings.update_lobby_info_message(message, current.channel)
                     self.cached_messages[current.channel.id] = message
-
+                    logging.info("Message was updated and saved to database")
 
 
 def setup(bot):
