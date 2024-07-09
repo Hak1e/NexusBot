@@ -24,6 +24,7 @@ class Nexus(commands.InteractionBot):
 
     async def on_ready(self):
         logger.info(f"Бот {self.user} готов к работе!")
+        print(f"Бот {self.user} готов к работе!")
         guilds = await self.bot.fetch_guilds(self).flatten()
         logger.info(f"Активные серверы ({len(guilds)}):")
         counter = 1
