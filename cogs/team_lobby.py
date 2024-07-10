@@ -351,7 +351,7 @@ class Lobby(commands.Cog):
             logging.info(f"Before channel {before.channel.name}")
             voice_creator_id = await self.lobby_settings.get_channel_creator_id(before.channel.id)
             if voice_creator_id:
-                logging.info("Left lobby room")
+                logging.info(f"{member.name} left lobby room")
                 await asyncio.sleep(1)
                 if before.channel.id in self.cached_messages:
                     message = self.cached_messages[before.channel.id]
@@ -423,7 +423,7 @@ class Lobby(commands.Cog):
             if is_voice_creator:
                 voice_creator_id, custom = is_voice_creator
                 if voice_creator_id:
-                    logging.info("Member joined in voice creator")
+                    logging.info(f"{member.name} joined in voice creator")
                     query = ("SELECT category_id_for_new_channel "
                              "FROM lobby_voice_channel_creator_settings "
                              "WHERE id = $1")
@@ -451,11 +451,10 @@ class Lobby(commands.Cog):
                             await self.lobby_settings.set_voice_channel_author_id(member, voice_channel)
                             logging.info("Voice channel author id added to database")
                         except disnake.errors.HTTPException:
-                            logging.error("Member left while moving")
+                            logging.error(f"{member.name}  left while moving")
                             await voice_channel.delete()
                             logging.error("Voice channel deleted")
                             return
-                        # await asyncio.sleep(1)
                         if voice_channel.members:
                             buttons = CustomChannelDashboardButtons(self.pool, self.bot)
                             await voice_channel.send(embed=hello_embed, view=buttons)
@@ -479,7 +478,7 @@ class Lobby(commands.Cog):
                             await self.lobby_settings.set_voice_channel_author_id(member, voice_channel)
                             logging.info("Voice channel author id added to database")
                         except disnake.errors.HTTPException:
-                            logging.error("Member left while moving")
+                            logging.error(f"{member.name}  left while moving")
                             await voice_channel.delete()
                             logging.error("Voice channel deleted")
                             return
@@ -527,7 +526,7 @@ class Lobby(commands.Cog):
                 voice_creator_id = await self.lobby_settings.get_channel_creator_id(current.channel.id)
                 if not voice_creator_id:
                     return
-                logging.info("Joined lobby room")
+                logging.info(f"{member.name} joined lobby room")
                 if current.channel.id in self.cached_messages:
                     message = self.cached_messages[current.channel.id]
                     logging.info("Found message in cache")
