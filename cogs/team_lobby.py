@@ -364,7 +364,6 @@ class Lobby(commands.Cog):
                     channel_overwrites = before.channel.overwrites
                     await before.channel.edit(overwrites=temp_overwrites)
                     counter = 1
-                    message_deleted = False
                     if message:
                         logging.info("Message found")
                         if message.id in self.queued_message_id:
@@ -379,7 +378,6 @@ class Lobby(commands.Cog):
                                 try:
                                     logging.info("Trying to delete message")
                                     await message.delete()
-                                    message_deleted = True
                                     logging.info("Message deleted")
                                     await self.lobby_settings.delete_message_id_from_db(message.id)
                                     logging.info("Lobby info message deleted from database")
@@ -391,26 +389,23 @@ class Lobby(commands.Cog):
                                     await asyncio.sleep(1)
                     else:
                         logging.info("Message was not found")
-                    if message_deleted:
-                        counter = 0
-                        while True:
-                            if counter >= MAX_WAIT_TIME / 2 + 1:
-                                break
-                            try:
-                                logging.info("[_2_] Deleting voice channel")
-                                await before.channel.delete()
-                                logging.info("Voice channel deleted")
-                                await self.lobby_settings.delete_voice_channel_author_id(before.channel)
-                                logging.info("Deleted voice channel author from database")
-                                await self.lobby_settings.delete_created_voice_channel_from_db(before.channel)
-                                logging.info("Deleted created voice channel from database")
-                                break
-                            except Exception as e:
-                                logging.error(f"[{counter}] Error while deleting voice channel: {e}")
-                                counter += 1
-                                await asyncio.sleep(1)
-                    else:
-                        logging.error("Message was not deleted. Voice channel wouldn't be deleted too")
+                    counter = 0
+                    while True:
+                        if counter >= MAX_WAIT_TIME / 2 + 1:
+                            break
+                        try:
+                            logging.info("Deleting voice channel")
+                            await before.channel.delete()
+                            logging.info("Voice channel deleted")
+                            await self.lobby_settings.delete_voice_channel_author_id(before.channel)
+                            logging.info("Deleted voice channel author from database")
+                            await self.lobby_settings.delete_created_voice_channel_from_db(before.channel)
+                            logging.info("Deleted created voice channel from database")
+                            break
+                        except Exception as e:
+                            logging.error(f"[{counter}] Error while deleting voice channel: {e}")
+                            counter += 1
+                            await asyncio.sleep(1)
                     
                 elif before.channel.members:
                     logging.info("Before channel is not empty. Updating lobby info")
@@ -455,7 +450,7 @@ class Lobby(commands.Cog):
                             await self.lobby_settings.set_voice_channel_author_id(member, voice_channel)
                             logging.info("Voice channel author id added to database")
                         except disnake.errors.HTTPException:
-                            logging.error("[_1_] Member left while moving")
+                            logging.error("Member left while moving")
                             await voice_channel.delete()
                             logging.error("Voice channel deleted")
                             return
@@ -483,7 +478,7 @@ class Lobby(commands.Cog):
                             await self.lobby_settings.set_voice_channel_author_id(member, voice_channel)
                             logging.info("Voice channel author id added to database")
                         except disnake.errors.HTTPException:
-                            logging.error("[_1_] Member left while moving")
+                            logging.error("Member left while moving")
                             await voice_channel.delete()
                             logging.error("Voice channel deleted")
                             return
