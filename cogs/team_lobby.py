@@ -358,7 +358,8 @@ class Lobby(commands.Cog):
                     logging.info("Found message in cache")
                 else:
                     message = await self.lobby_settings.get_lobby_info_message(before.channel)
-                    logging.info("Fetched message from database")
+                    if message:
+                        logging.info("Fetched message from database")
                 if not before.channel.members:
                     logging.info("Before channel is empty")
                     channel_overwrites = before.channel.overwrites
