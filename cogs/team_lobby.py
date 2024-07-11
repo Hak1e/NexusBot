@@ -348,7 +348,7 @@ class Lobby(commands.Cog):
                            self.bot.user: disnake.PermissionOverwrite(view_channel=True)}
 
         if before.channel:
-            logging.info(f"Before channel {before.channel.name}")
+            logging.info(f"Before channel ({before.channel.name})")
             voice_creator_id = await self.lobby_settings.get_channel_creator_id(before.channel.id)
             if voice_creator_id:
                 logging.info(f"{member.name} left lobby room")
@@ -361,7 +361,7 @@ class Lobby(commands.Cog):
                     if message:
                         logging.info("Fetched message from database")
                 if not before.channel.members:
-                    logging.info("Before channel is empty")
+                    logging.info(f"Before channel ({before.channel.name}) is empty")
                     channel_overwrites = before.channel.overwrites
                     await before.channel.edit(overwrites=temp_overwrites)
                     counter = 1
@@ -395,27 +395,27 @@ class Lobby(commands.Cog):
                         if counter >= MAX_WAIT_TIME / 2 + 1:
                             break
                         try:
-                            logging.info("Deleting voice channel")
+                            logging.info(f"Deleting voice channel ({before.channel.name})")
                             await before.channel.delete()
-                            logging.info("Voice channel deleted")
+                            logging.info(f"Voice channel ({before.channel.name}) deleted")
                             await self.lobby_settings.delete_voice_channel_author_id(before.channel)
                             logging.info("Deleted voice channel author from database")
                             await self.lobby_settings.delete_created_voice_channel_from_db(before.channel)
                             logging.info("Deleted created voice channel from database")
                             break
                         except Exception as e:
-                            logging.error(f"[{counter}] Error while deleting voice channel: {e}")
+                            logging.error(f"[{counter}] Error while deleting voice channel ({before.channel.name}): {e}")
                             counter += 1
                             await asyncio.sleep(1)
                     
                 elif before.channel.members:
-                    logging.info("Before channel is not empty. Updating lobby info")
+                    logging.info(f"Before channel ({before.channel.name}) is not empty. Updating lobby info")
                     if message:
                         await self.lobby_settings.update_lobby_info_message(message, before.channel)
                         logging.info("Lobby info updated")
 
         if current.channel:
-            logging.info(f"Current channel {current.channel.name}")
+            logging.info(f"Current channel ({current.channel.name})")
             query = ("SELECT id, custom "
                      "FROM lobby_voice_channel_creator_settings "
                      "WHERE id = $1")
@@ -480,7 +480,7 @@ class Lobby(commands.Cog):
                         except disnake.errors.HTTPException:
                             logging.error(f"{member.name}  left while moving")
                             await voice_channel.delete()
-                            logging.error("Voice channel deleted")
+                            logging.error(f"Voice channel ({voice_channel.name}) deleted")
                             return
                         # await asyncio.sleep(1)
                         if voice_channel.members:
@@ -526,7 +526,7 @@ class Lobby(commands.Cog):
                 voice_creator_id = await self.lobby_settings.get_channel_creator_id(current.channel.id)
                 if not voice_creator_id:
                     return
-                logging.info(f"{member.name} joined lobby room")
+                logging.info(f"{member.name} joined lobby room ({current.channel.name})")
                 if current.channel.id in self.cached_messages:
                     message = self.cached_messages[current.channel.id]
                     logging.info("Found message in cache")
