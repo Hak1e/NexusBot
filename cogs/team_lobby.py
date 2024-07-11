@@ -374,7 +374,10 @@ class Lobby(commands.Cog):
                             logging.info("Message added in queue")
                             while True:
                                 if counter > MAX_WAIT_TIME:
-                                    await before.channel.edit(overwrites=channel_overwrites)
+                                    try:
+                                        await before.channel.edit(overwrites=channel_overwrites)
+                                    except disnake.NotFound:
+                                        pass
                                     break
                                 try:
                                     logging.info("Trying to delete message")
