@@ -7,7 +7,6 @@ from constants import MAX_ITEMS_IN_MENU, MAX_SELECT_MENUS
 import enum
 from models.lobby_settings import AuthorSettings, RequestedRole, LobbyChannelSettings
 
-
 MAX_WAIT_TIME = 20
 
 
@@ -16,8 +15,7 @@ def generate_initial_embed_message(member):
                          description=f"Владелец: {member.mention}\n"
                                      "Используйте кнопки ниже для настройки канала.\n\n"
                                      "## ‼️Если кнопки перестали работать ‼️\n"
-                                     "Воспользуйтесь "
-                                     "слеш-командой `/channel dashboard` для повторного вызова "
+                                     "Воспользуйтесь слеш-командой `/channel dashboard` для повторного вызова "
                                      "сообщения с кнопками или используйте другие слеш-команды "
                                      "для комнаты без взаимодействия с кнопками")
 
@@ -408,10 +406,11 @@ class Lobby(commands.Cog):
                             logging.info("Deleted created voice channel from database")
                             break
                         except Exception as e:
-                            logging.error(f"[{counter}] Error while deleting voice channel ({before.channel.name}): {e}")
+                            logging.error(
+                                f"[{counter}] Error while deleting voice channel ({before.channel.name}): {e}")
                             counter += 1
                             await asyncio.sleep(1)
-                    
+
                 elif before.channel.members:
                     logging.info(f"Before channel ({before.channel.name}) is not empty. Updating lobby info")
                     if message:
