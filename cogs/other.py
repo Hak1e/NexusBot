@@ -16,7 +16,7 @@ class SendMessages(commands.Cog):
     @commands.slash_command()
     async def ping(self, ctx: disnake.CommandInteraction):
         """Проверить, находится ли бот в сети"""
-        await ctx.send("Pong!")
+        await ctx.send(f"Pong!\nLatency: {round(self.bot.latency * 1000)}ms")
 
     @commands.slash_command()
     async def say(self, ctx: disnake.CommandInteraction,
