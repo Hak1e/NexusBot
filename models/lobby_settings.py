@@ -205,7 +205,8 @@ class LobbyChannelSettings:
                 target_id = target_id_permissions["target"]
                 permissions = target_id_permissions["permissions"]
                 target = member.guild.get_member(target_id) or member.guild.get_role(target_id)
-
+                if not target:
+                    continue
                 permission_overwrite = disnake.PermissionOverwrite()
                 for permission, value in permissions.items():
                     setattr(permission_overwrite, permission, value)
