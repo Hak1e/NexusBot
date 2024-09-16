@@ -42,18 +42,14 @@ class ButtonsIDs(str, enum.Enum):
 
 class ModalWindow(Modal):
     def __init__(self, ctx,
-                 name, name_placeholder,
                  description, description_placeholder,
                  button_category, title,
                  pool, ticket_purpose):
         self.button_category = button_category
         self.pool = pool
-        self.name_custom_id = f"name-{ctx.id}"
         self.description_custom_id = f"desc-{ctx.id}"
         self.ticket_purpose = ticket_purpose
         components = [
-            disnake.ui.TextInput(label=name, placeholder=name_placeholder,
-                                 style=disnake.TextInputStyle.short, custom_id=f"name-{ctx.id}"),
             disnake.ui.TextInput(label=description, placeholder=description_placeholder,
                                  style=disnake.TextInputStyle.long, custom_id=f"desc-{ctx.id}")
         ]
@@ -67,11 +63,6 @@ class ModalWindow(Modal):
                                        ticket_purpose):
             embed = (
                 disnake.Embed(title=ticket_purpose, color=disnake.Color.blue())
-                .add_field(
-                    name="Тема",
-                    value=ctx.text_values[self.name_custom_id][:1024],
-                    inline=False
-                )
                 .add_field(
                     name="Описание",
                     value=ctx.text_values[self.description_custom_id][:1024],
@@ -156,8 +147,6 @@ class ModalWindow(Modal):
                               description=f"Создан участником {ctx.author.mention}(`{ctx.author.id}`)\n"
                                           f"**Категория**\n"
                                           f"{self.ticket_purpose}\n"
-                                          f"**Тема**\n"
-                                          f"{ctx.text_values[self.name_custom_id][:1024]}\n"
                                           f"**Описание**\n"
                                           f"{ctx.text_values[self.description_custom_id][:1024]}\n",
                               color=disnake.Color.green())
@@ -389,8 +378,7 @@ class Tickets(commands.Cog):
         #     return
 
         if button_id == ButtonsIDs.QUESTION:
-            modal_window = ModalWindow(name="Тема вопроса", name_placeholder="Напишите тему своего вопроса",
-                                       description="Полный вопрос",
+            modal_window = ModalWindow(description="Полный вопрос",
                                        description_placeholder="Напишите свой вопрос развёрнуто",
                                        ctx=ctx, button_category=ButtonsIDs.QUESTION,
                                        title="Задать вопрос", pool=self.pool,
@@ -398,8 +386,7 @@ class Tickets(commands.Cog):
             await ctx.response.send_modal(modal_window)
 
         elif button_id == ButtonsIDs.REPORT:
-            modal_window = ModalWindow(name="Краткая информация", name_placeholder="Напишите коротко о ситуации",
-                                       description="Полная информация",
+            modal_window = ModalWindow(description="Полная информация",
                                        description_placeholder="Опишите ситуацию полностью",
                                        ctx=ctx, button_category=ButtonsIDs.REPORT,
                                        title="Подать жалобу", pool=self.pool,
@@ -407,8 +394,7 @@ class Tickets(commands.Cog):
             await ctx.response.send_modal(modal_window)
 
         elif button_id == ButtonsIDs.OFFER:
-            modal_window = ModalWindow(name="Тема предложения", name_placeholder="Напишите тему предложения",
-                                       description="Полное предложение",
+            modal_window = ModalWindow(description="Полное предложение",
                                        description_placeholder="Напишите своё предложение развёрнуто",
                                        ctx=ctx, button_category=ButtonsIDs.OFFER,
                                        title="Предложить идею", pool=self.pool,
