@@ -1,5 +1,5 @@
-import disnake
-from disnake.ext import commands
+import discord
+from discord.ext import commands
 from core.bot import Nexus
 import asyncpg
 from models.button_view import PageButtons
@@ -13,13 +13,13 @@ class Journal(commands.Cog):
         self.pool: asyncpg.Pool = self.bot.get_pool()
 
     @commands.slash_command()
-    async def journal_show(self, ctx: disnake.CommandInteraction,
-                           user: disnake.User, ephemeral: Optional[bool] = False):
+    async def journal_show(self, ctx: discord.ApplicationContext,
+                           user: discord.User, ephemeral: Optional[bool] = False):
         """Показать журнал пользователя
 
         Parameters
         ----------
-        ctx: disnake.CommandInteraction
+        ctx: discord.ApplicationContext
         user: Пользователь
         ephemeral: Отправить эфемерное сообщение. По стандарту False
         """
@@ -28,8 +28,8 @@ class Journal(commands.Cog):
                 "WHERE guild_id = $1 and user_id = $2"
         notes = await self.pool.fetchval(query, ctx.guild.id, user.id)
         if not notes:
-            empty_embed = disnake.Embed(title=f"Заметки для пользователя {user.name}", description="Заметок нет",
-                                        color=disnake.Color.blurple())
+            empty_embed = discord.Embed(title=f"Заметки для пользователя {user.name}", description="Заметок нет",
+                                        color=discord.Color.blurple())
             buttons = PageButtons([])
             await ctx.send(embed=empty_embed, ephemeral=ephemeral,
                            view=buttons)
@@ -40,7 +40,7 @@ class Journal(commands.Cog):
         counter = 1
         for item_index in range(0, len(notes), items_per_page):
             page_notes = notes[item_index:item_index + items_per_page]
-            page = disnake.Embed(title=f"Заметки для пользователя {user.name}", color=disnake.Color.blurple())
+            page = discord.Embed(title=f"Заметки для пользователя {user.name}", color=discord.Color.blurple())
             for note in page_notes:
                 page.add_field(name="", value=f"`#{counter}` {note}",
                                inline=False)
@@ -52,13 +52,13 @@ class Journal(commands.Cog):
                        ephemeral=ephemeral)
 
     @commands.slash_command()
-    async def journal_add(self, ctx: disnake.CommandInteraction,
-                          user: disnake.User, note: str):
+    async def journal_add(self, ctx: discord.ApplicationContext,
+                          user: discord.User, note: str):
         """Добавить пользователя в журнал
 
         Parameters
         ----------
-        ctx: disnake.CommandInteraction
+        ctx: discord.ApplicationContext
         user: Пользователь
         note: Заметка о пользователе
         """
@@ -71,30 +71,30 @@ class Journal(commands.Cog):
         await self.pool.execute(query, ctx.guild.id,
                                 user.id, note)
 
-        query = ("SELECT channel_id "
-                 "FROM journal_logs "
+        query = ("SELECT id "
+                 "FROM journal_log_channel "
                  "WHERE guild_id = $1")
         channel_id = await self.pool.fetchval(query, ctx.guild.id)
         if channel_id:
-            log = disnake.Embed(title="Заметка создана", color=disnake.Color.green(),
+            log = discord.Embed(title="Заметка создана", color=discord.Color.green(),
                                 description=f"{ctx.author.mention} создал(а) заметку о пользователе {user.mention}:\n"
                                             f"{note}")
             log_channel = ctx.guild.get_channel(channel_id)
             await log_channel.send(embed=log)
 
-        embed = disnake.Embed(title="", description=f"Заметка для пользователя {user.mention} добавлена:\n{note}",
-                              color=disnake.Color.green())
+        embed = discord.Embed(title="", description=f"Заметка для пользователя {user.mention} добавлена:\n{note}",
+                              color=discord.Color.green())
         await ctx.send(embed=embed, ephemeral=True)
 
     @commands.slash_command()
-    async def journal_edit(self, ctx: disnake.CommandInteraction,
-                           user: disnake.User, number: int,
+    async def journal_edit(self, ctx: discord.ApplicationContext,
+                           user: discord.User, number: int,
                            note: str):
         """Изменить конкретную заметку о пользователе
 
         Parameters
         ----------
-        ctx: disnake.CommandInteraction
+        ctx: discord.ApplicationContext
         user: Пользователь
         number: Номер заметки
         note: Новая заметка
@@ -120,32 +120,32 @@ class Journal(commands.Cog):
         await self.pool.execute(query, ctx.guild.id,
                                 user.id, number, new_note)
 
-        query = ("SELECT channel_id "
-                 "FROM journal_logs "
+        query = ("SELECT id "
+                 "FROM journal_log_channel "
                  "WHERE guild_id = $1")
         channel_id = await self.pool.fetchval(query, ctx.guild.id)
         if channel_id:
-            log = disnake.Embed(title="Заметка изменена", color=disnake.Color.blurple(),
+            log = discord.Embed(title="Заметка изменена", color=discord.Color.blurple(),
                                 description=f"{ctx.author.mention} изменил(а) заметку о пользователе {user.mention}:\n"
                                             f"Старая заметка:\n{old_note}\n"
                                             f"Новая заметка:\n{new_note}")
             log_channel = ctx.guild.get_channel(channel_id)
             await log_channel.send(embed=log)
 
-        embed = disnake.Embed(title="", description=f"Заметка для пользователя {user.mention} изменена:\n"
+        embed = discord.Embed(title="", description=f"Заметка для пользователя {user.mention} изменена:\n"
                                                     f"Старая заметка:\n{old_note}\n"
                                                     f"Новая заметка:\n{new_note}",
-                              color=disnake.Color.green())
+                              color=discord.Color.green())
         await ctx.send(embed=embed, ephemeral=True)
 
     @commands.slash_command()
-    async def journal_remove(self, ctx: disnake.CommandInteraction,
-                             user: disnake.User, numbers: str):
+    async def journal_remove(self, ctx: discord.ApplicationContext,
+                             user: discord.User, numbers: str):
         """Удалить заметку/заметки о пользователе
 
         Parameters
         ----------
-        ctx: disnake.CommandInteraction
+        ctx: discord.ApplicationContext
         user: Пользователь
         numbers: Номер заметки через пробел
         """
@@ -170,12 +170,12 @@ class Journal(commands.Cog):
                         "WHERE guild_id = $1 and user_id = $2")
         await self.pool.execute(update_notes, ctx.guild.id, user.id, new_notes)
 
-        query = ("SELECT channel_id "
-                 "FROM journal_logs "
+        query = ("SELECT id "
+                 "FROM journal_log_channel "
                  "WHERE guild_id = $1")
         channel_id = await self.pool.fetchval(query, ctx.guild.id)
         if channel_id:
-            log = disnake.Embed(title="Заметка удалена", color=disnake.Color.red(),
+            log = discord.Embed(title="Заметка удалена", color=discord.Color.red(),
                                 description=f"{ctx.author.mention} удалил(а) заметку {' '.join(notes_number)} "
                                             f"о пользователе {user.mention}:\n")
             log.add_field(name="", value="\n".join(deleted_notes))
@@ -183,7 +183,7 @@ class Journal(commands.Cog):
             log_channel = ctx.guild.get_channel(channel_id)
             await log_channel.send(embed=log)
 
-        embed = disnake.Embed(title="", color=disnake.Color.green(),
+        embed = discord.Embed(title="", color=discord.Color.green(),
                               description=f"Заметка {' '.join(notes_number)} для пользователя {user.mention} удалена:\n")
         embed.add_field(name="", value="\n".join(deleted_notes), inline=False)
         embed.add_field(name="", value="❗Воспользуйтесь просмотром журнала, чтобы увидеть обновлённые номера заметок",

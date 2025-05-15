@@ -1,7 +1,7 @@
 import asyncio
 import time
-import disnake
-from disnake.ext import commands
+import discord
+from discord.ext import commands
 from typing import Optional
 from core.bot import Nexus
 
@@ -14,17 +14,17 @@ class SendMessages(commands.Cog):
         self.meme_channel_id = None
 
     @commands.slash_command()
-    async def ping(self, ctx: disnake.CommandInteraction):
+    async def ping(self, ctx: discord.ApplicationContext):
         """Проверить, находится ли бот в сети"""
-        await ctx.send("Pong!")
+        await ctx.respond(f"Pong!\nLatency: {round(self.bot.latency * 1000)}ms")
 
     @commands.slash_command()
-    async def say(self, ctx: disnake.CommandInteraction,
-                  message: str, channel: Optional[disnake.TextChannel] = None):
+    async def say(self, ctx: discord.ApplicationContext,
+                  message: str, channel: Optional[discord.TextChannel] = None):
         """Написать сообщение от лица бота"""
         channel = channel or ctx.channel
         await channel.send(message)
-        await ctx.send("Сообщение отправлено", ephemeral=True)
+        await ctx.respond("Сообщение отправлено", ephemeral=True)
 
     async def wait_for_message(self, ctx, timeout=120):
         def check(msg):
@@ -33,7 +33,7 @@ class SendMessages(commands.Cog):
         return await self.bot.wait_for("message", check=check, timeout=timeout)
 
     @commands.slash_command()
-    async def echo(self, ctx: disnake.CommandInteraction,
+    async def echo(self, ctx: discord.ApplicationContext,
                    channel_id, guild_id=None):
         """Начать слушать сообщения пользователя и отправлять их в указанный чат
 
@@ -45,7 +45,7 @@ class SendMessages(commands.Cog):
         """
         accepted_person_ids = [389787190986670082, 434780487127400459]
         if ctx.author.id not in accepted_person_ids:
-            await ctx.send("Вам не разрешено использовать данную команду", ephemeral=True)
+            await ctx.respond("Вам не разрешено использовать данную команду", ephemeral=True)
             return
 
         try:
@@ -53,21 +53,21 @@ class SendMessages(commands.Cog):
             if not guild:
                 raise ValueError
         except:
-            await ctx.send("Не найден указанный сервер", ephemeral=True)
+            await ctx.respond("Не найден указанный сервер", ephemeral=True)
             return
         try:
             channel = guild.get_channel(int(channel_id))
             if not channel:
                 raise ValueError
         except:
-            await ctx.send("Не найден канал на этом сервере", ephemeral=True)
+            await ctx.respond("Не найден канал на этом сервере", ephemeral=True)
             return
 
         try:
-            await ctx.send(f"Отправьте сообщение, которое будет отправлено в `{channel.name}` сервера `{guild.name}`\n"
+            await ctx.respond(f"Отправьте сообщение, которое будет отправлено в `{channel.name}` сервера `{guild.name}`\n"
                            "Чтобы остановить команду, отправьте `<<stop`")
-        except disnake.HTTPException:
-            await ctx.send(f"Нет прав на просмотр/отправку сообщений в этом канале", ephemeral=True)
+        except discord.HTTPException:
+            await ctx.respond(f"Нет прав на просмотр/отправку сообщений в этом канале", ephemeral=True)
             return
 
         while True:
@@ -90,7 +90,7 @@ class SendMessages(commands.Cog):
                 return
 
     @commands.slash_command()
-    async def event_members(self, ctx: disnake.CommandInteraction,
+    async def event_members(self, ctx: discord.ApplicationContext,
                             bounty: int = None):
         """Оповестить всех, кто находится в голосовом канале с Вами
 
@@ -105,7 +105,7 @@ class SendMessages(commands.Cog):
         add_money_to_member = [f".add-money `<@{member.id}>` {bounty}" for member in members]
         members_names = [f"<@{member.id}>" for member in members]
         embed = (
-            disnake.Embed(
+            discord.Embed(
                 description=f"**Участники канала** <#{voice_channel_id}>"
             )
             .set_footer(
@@ -122,7 +122,7 @@ class SendMessages(commands.Cog):
                 inline=False
             )
         )
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed)
 
 
 def setup(bot):

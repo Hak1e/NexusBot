@@ -1,29 +1,31 @@
-import disnake
-from disnake.ext import commands
-from core.db import Database
 import logging
 
+import discord
+from discord.ext import commands
+
+from core.db import Database
 
 logger = logging.getLogger(__name__)
 
 
-class Nexus(commands.InteractionBot):
+class Nexus(commands.Bot):
     def __init__(self) -> None:
-        intents = disnake.Intents.all()
+        intents = discord.Intents.all()
         super().__init__(intents=intents)
         self.db = Database()
         self.pool = None
-        self.bot = commands.InteractionBot
+        self.bot = commands.Bot
         self.persistent_views_added = False
 
     async def connect_to_db(self):
         print("Подключаюсь к базе данных")
         await self.db.connect()
         self.pool = self.db.get_pool()
-        print(f"Подключено")
+        print("Подключено")
 
     async def on_ready(self):
         logger.info(f"Бот {self.user} готов к работе!")
+        print(f"Бот {self.user} готов к работе!")
         guilds = await self.bot.fetch_guilds(self).flatten()
         logger.info(f"Активные серверы ({len(guilds)}):")
         counter = 1
@@ -32,11 +34,12 @@ class Nexus(commands.InteractionBot):
             counter += 1
 
     async def on_guild_join(self, guild):
-        query = ("INSERT INTO guild (id, owner_id) "
-                 "VALUES ($1, $2) "
-                 "ON CONFLICT (id) DO NOTHING")
-        await self.pool.execute(query, guild.id,
-                                guild.owner_id)
+        query = (
+            "INSERT INTO guild (id, owner_id) "
+            "VALUES ($1, $2) "
+            "ON CONFLICT (id) DO NOTHING"
+        )
+        await self.pool.execute(query, guild.id, guild.owner_id)
 
     def get_db(self):
         return self.db

@@ -1,6 +1,6 @@
 import asyncpg
 import json
-import disnake
+import discord
 import enum
 import asyncio
 
@@ -8,7 +8,7 @@ import asyncio
 class AuthorSettings:
     def __init__(self, bot):
         self.bot = bot
-        self.pool: asyncpg.Pool = self.bot.get_pool()
+        self.pool: asyncpg.Pool = bot.get_pool()
 
     async def get_voice_channel_author_id(self, voice_channel):
         get_channel_author_id = "SELECT user_id " \
@@ -132,6 +132,8 @@ class LobbyChannelSettings:
         if not message_id:
             return
         channel_creator_id = await self.get_channel_creator_id(voice_channel.id)
+        if not channel_creator_id:
+            return
         text_channel_id = await self.get_text_channel_id(channel_creator_id)
         if not text_channel_id:
             return
@@ -139,7 +141,7 @@ class LobbyChannelSettings:
                                                       text_channel_id)
         return message or None
 
-    async def get_message_from_discord(self, voice_channel: disnake.VoiceChannel,
+    async def get_message_from_discord(self, voice_channel: discord.VoiceChannel,
                                        message_id, text_channel_id,
                                        row=0):
         if row == 4:
@@ -156,7 +158,7 @@ class LobbyChannelSettings:
             #             break
             #         await asyncio.sleep(1)
             return message
-        except disnake.errors.NotFound:
+        except discord.errors.NotFound:
             await asyncio.sleep(1)
             message = await self.get_message_from_discord(voice_channel, message_id,
                                                           text_channel_id, row + 1)
@@ -190,7 +192,7 @@ class LobbyChannelSettings:
                                      member):
         initial_category_overwrites = category.overwrites
         category_overwrites = category.overwrites.copy()
-        member_overwrite = disnake.PermissionOverwrite(view_channel=True, connect=True,
+        member_overwrite = discord.PermissionOverwrite(view_channel=True, connect=True,
                                                        move_members=True)
         query = ("SELECT channel_overwrites "
                  "FROM lobby_voice_channel_settings "
@@ -203,8 +205,9 @@ class LobbyChannelSettings:
                 target_id = target_id_permissions["target"]
                 permissions = target_id_permissions["permissions"]
                 target = member.guild.get_member(target_id) or member.guild.get_role(target_id)
-
-                permission_overwrite = disnake.PermissionOverwrite()
+                if not target:
+                    continue
+                permission_overwrite = discord.PermissionOverwrite()
                 for permission, value in permissions.items():
                     setattr(permission_overwrite, permission, value)
 

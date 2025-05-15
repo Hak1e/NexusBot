@@ -1,5 +1,5 @@
-import disnake
-from disnake.ext import commands
+import discord
+from discord.ext import commands
 import asyncpg
 import datetime
 
@@ -31,7 +31,7 @@ class Member(commands.Cog):
         return sync_member_name, sync_member_roles
 
     @commands.Cog.listener()
-    async def on_member_remove(self, member: disnake.Member):
+    async def on_member_remove(self, member: discord.Member):
         # sync_member_name, sync_member_roles = await self.get_sync_settings(member.guild.id)
         # if sync_member_name:
         #     query = ("INSERT INTO guild_member (id, guild_id, nick) "
@@ -57,7 +57,7 @@ class Member(commands.Cog):
         if channel is None:
             return
 
-        embed = disnake.Embed(title="🚪 Пользователь ушел", color=disnake.Color.red(),
+        embed = discord.Embed(title="🚪 Пользователь ушел", color=discord.Color.red(),
                               description=f"**Пользователь:** `{member.name} ({member.id})`\n"
                                           f"**Всего пользователей:** `{len(member.guild.members)}`")
         embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
@@ -65,7 +65,7 @@ class Member(commands.Cog):
         await channel.send(embed=embed)
 
     # @commands.Cog.listener()
-    async def on_member_join(self, member: disnake.Member):
+    async def on_member_join(self, member: discord.Member):
         sync_member_name, sync_member_roles = await self.get_sync_settings(member.guild.id)
         if sync_member_name:
             query = ("SELECT nick "
@@ -87,8 +87,8 @@ class Member(commands.Cog):
                 await member.add_roles(*member_roles)
 
     # @commands.Cog.listener()
-    async def on_member_update(self, old_member_info: disnake.Member,
-                               current_member_info: disnake.Member):
+    async def on_member_update(self, old_member_info: discord.Member,
+                               current_member_info: discord.Member):
         # nickname, roles
         pass
 

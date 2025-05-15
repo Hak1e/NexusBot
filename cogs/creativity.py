@@ -1,11 +1,11 @@
-import disnake
-from disnake.ext import commands
+import discord
+from discord.ext import commands
 from typing import Optional
 from core.bot import Nexus
 from models.errors import DataBaseFetchError
 
 
-async def send_embed(ctx: disnake.CommandInteraction, bot: commands.InteractionBot,
+async def send_embed(ctx: discord.ApplicationContext, bot: commands.Bot,
                      image_url, description,
                      channel_id, reply_message,
                      like, dislike,
@@ -13,7 +13,7 @@ async def send_embed(ctx: disnake.CommandInteraction, bot: commands.InteractionB
     channel = bot.get_channel(channel_id)
 
     if channel is None:
-        await ctx.send("Не удалось найти канал для отправки", ephemeral=True)
+        await ctx.respond("Не удалось найти канал для отправки", ephemeral=True)
         return
 
     query = ("SELECT text "
@@ -21,7 +21,7 @@ async def send_embed(ctx: disnake.CommandInteraction, bot: commands.InteractionB
              "WHERE guild_id = $1")
     footer_text = await pool.fetchval(query, ctx.guild.id)
     embed = (
-        disnake.Embed(
+        discord.Embed(
             title=title if title else None,
             description=description,
             color=0x3f8fdf
@@ -32,7 +32,7 @@ async def send_embed(ctx: disnake.CommandInteraction, bot: commands.InteractionB
     message = await channel.send(embed=embed)
     await message.add_reaction(emoji=like)
     await message.add_reaction(emoji=dislike)
-    await ctx.send(reply_message, ephemeral=True)
+    await ctx.respond(reply_message, ephemeral=True)
 
 
 class Creativity(commands.Cog):
@@ -46,12 +46,12 @@ class Creativity(commands.Cog):
                 "WHERE guild_id = $1"
         result = await self.pool.fetch(query, ctx.guild.id)
         if not result:
-            return await ctx.send("Ошибка загрузки реакций", ephemeral=True)
+            return await ctx.respond("Ошибка загрузки реакций", ephemeral=True)
         like, dislike = result[0]["_like"], result[0]["dislike"]
         return like, dislike
 
     @commands.slash_command()
-    async def art(self, ctx: disnake.CommandInteraction,
+    async def art(self, ctx: discord.ApplicationContext,
                   image_url: str, author: Optional[str] = None,
                   comment: Optional[str] = None):
         """Выложить арт
@@ -69,7 +69,7 @@ class Creativity(commands.Cog):
                 "WHERE guild_id = $1"
         art_channel_id = await self.pool.fetchval(query, ctx.guild.id)
         if not art_channel_id:
-            await ctx.send("Не найден канал для артов", ephemeral=True)
+            await ctx.respond("Не найден канал для артов", ephemeral=True)
             raise DataBaseFetchError()
         like, dislike = await self.load_emoji_reactions(ctx)
         if author:
@@ -85,7 +85,7 @@ class Creativity(commands.Cog):
                          dislike=dislike, pool=self.pool)
 
     @commands.slash_command()
-    async def meme(self, ctx: disnake.CommandInteraction,
+    async def meme(self, ctx: discord.ApplicationContext,
                    image_url: str, author: Optional[str] = None,
                    comment: Optional[str] = None):
         """Выложить мем
@@ -103,7 +103,7 @@ class Creativity(commands.Cog):
                  "WHERE guild_id = $1")
         meme_channel_id = await self.pool.fetchval(query, ctx.guild.id)
         if not meme_channel_id:
-            await ctx.send("Не найден канал для мемов", ephemeral=True)
+            await ctx.respond("Не найден канал для мемов", ephemeral=True)
             raise DataBaseFetchError()
 
         like, dislike = await self.load_emoji_reactions(ctx)
