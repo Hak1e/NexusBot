@@ -110,8 +110,7 @@ class ModalWindow(Modal):
                 await ctx.respond(no_settings_found_message, ephemeral=True)
                 return
             roles_id = list(result)
-            roles_to_add = [ctx.guild.get_role(
-                role_id) for role_id in roles_id]
+            roles_to_add = [ctx.guild.get_role(role_id) for role_id in roles_id]
             channel = await self.create_ticket_channel(
                 ctx=ctx,
                 tickets_category_id=tickets_category_id,
@@ -129,8 +128,7 @@ class ModalWindow(Modal):
             if not roles_id:
                 await ctx.respond(no_settings_found_message, ephemeral=True)
                 return
-            roles_to_add = [ctx.guild.get_role(
-                role_id) for role_id in roles_id]
+            roles_to_add = [ctx.guild.get_role(role_id) for role_id in roles_id]
             channel = await self.create_ticket_channel(
                 ctx=ctx,
                 tickets_category_id=tickets_category_id,
@@ -148,8 +146,7 @@ class ModalWindow(Modal):
             if not roles_id:
                 await ctx.respond(no_settings_found_message, ephemeral=True)
                 return
-            roles_to_add = [ctx.guild.get_role(
-                role_id) for role_id in roles_id]
+            roles_to_add = [ctx.guild.get_role(role_id) for role_id in roles_id]
             channel = await self.create_ticket_channel(
                 ctx=ctx,
                 tickets_category_id=tickets_category_id,
@@ -219,8 +216,7 @@ class TicketsCommands(commands.Cog):
         self.bot = bot
         self.pool = asyncpg.Pool = bot.get_pool()
 
-    create = SlashCommandGroup(
-        "create", "Создать сообщение с кнопками для билетов")
+    create = SlashCommandGroup("create", "Создать сообщение с кнопками для билетов")
     start = create.create_subgroup("start")
 
     @start.command()
@@ -402,9 +398,7 @@ class Tickets(commands.Cog):
                 pool=self.pool,
                 title=f"Билет #{ticket_number} удалён",
                 ctx=ctx,
-                description=f"Удалён участником {ctx.author.mention}(`{
-                    ctx.author.id
-                }`)",
+                description=f"Удалён участником {ctx.author.mention}(`{ctx.author.id}`)",
                 color=discord.Color.red(),
             )
 

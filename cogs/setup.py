@@ -1,8 +1,8 @@
 import re
-from discord.commands import SlashCommandGroup
 
 import asyncpg
 import discord
+from discord.commands import SlashCommandGroup
 from discord.ext import commands
 
 from core.bot import Nexus
@@ -18,8 +18,7 @@ class SelectRoles(discord.ui.Select):
     def __init__(self, roles, row):
         options = [discord.SelectOption(label="Не выбрано", value="none")]
         for role in roles:
-            options.append(discord.SelectOption(
-                label=role.name, value=str(role.id)))
+            options.append(discord.SelectOption(label=role.name, value=str(role.id)))
 
         super().__init__(
             placeholder=f"{row} часть. Выберите роли",
@@ -252,8 +251,7 @@ class SetupBot(commands.Cog):
         ticket_category: Указать категорию тикетов
         closed_ticket_category: Указать категорию закрытых тикетов
         """
-        ticket_category_id = ticket_category.id or int(
-            ticket_category)  # type: ignore
+        ticket_category_id = ticket_category.id or int(ticket_category)  # type: ignore
         closed_ticket_category_id = closed_ticket_category.id or int(
             closed_ticket_category
         )  # type: ignore
@@ -351,8 +349,7 @@ class SetupBot(commands.Cog):
         if question_roles_ids:
             for record in question_roles_ids:
                 for role_id in record["question_roles_ids"]:
-                    question_roles.append(
-                        ctx.guild.get_role(int(role_id)).mention)
+                    question_roles.append(ctx.guild.get_role(int(role_id)).mention)
 
         report_roles_id_query = (
             "SELECT report_roles_ids FROM ticket_roles WHERE guild_id = $1"
@@ -362,8 +359,7 @@ class SetupBot(commands.Cog):
         if report_roles_ids:
             for record in report_roles_ids:
                 for role_id in record["report_roles_ids"]:
-                    report_roles.append(
-                        ctx.guild.get_role(int(role_id)).mention)
+                    report_roles.append(ctx.guild.get_role(int(role_id)).mention)
 
         offer_roles_id_query = (
             "SELECT offer_roles_ids FROM ticket_roles WHERE guild_id = $1"
@@ -373,8 +369,7 @@ class SetupBot(commands.Cog):
         if offer_roles_ids:
             for record in offer_roles_ids:
                 for role_id in record["offer_roles_ids"]:
-                    offer_roles.append(
-                        ctx.guild.get_role(int(role_id)).mention)
+                    offer_roles.append(ctx.guild.get_role(int(role_id)).mention)
         roles_not_found_message = "Нет"
         embed = (
             discord.Embed(title="Роли с доступом к тикетам")
@@ -478,7 +473,9 @@ class SetupBot(commands.Cog):
     # endregion
 
     # region Creativity
-    creativity = set.create_subgroup("creativity", "Настройка канала для артов, мемов, реакций под постами")
+    creativity = set.create_subgroup(
+        "creativity", "Настройка канала для артов, мемов, реакций под постами"
+    )
 
     @creativity.command()
     async def emojis(self, ctx: discord.ApplicationContext, like, dislike):
@@ -644,8 +641,7 @@ class SetupBot(commands.Cog):
             text_channel_id = None
             log_needed = False
         else:
-            text_channel_id = text_channel.id or int(
-                text_channel)  # type: ignore
+            text_channel_id = text_channel.id or int(text_channel)  # type: ignore
             log_needed = True
         channels_creators_ids = re.split(", |,| ,| ", channels_creators_ids)
         channels_creators_ids = map(int, channels_creators_ids)
