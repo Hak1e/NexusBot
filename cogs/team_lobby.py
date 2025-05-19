@@ -8,7 +8,7 @@ import enum
 from models.lobby_settings import AuthorSettings, RequestedRole, LobbyChannelSettings
 
 MAX_WAIT_TIME = 20
-
+# TODO: добавить запрет стрима
 
 def generate_initial_embed_message(member):
     return discord.Embed(title="Добро пожаловать в комнату", color=discord.Color.blurple(),
