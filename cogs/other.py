@@ -19,8 +19,12 @@ class SendMessages(commands.Cog):
         await ctx.respond(f"Pong!\nLatency: {round(self.bot.latency * 1000)}ms")
 
     @commands.slash_command()
-    async def say(self, ctx: discord.ApplicationContext,
-                  message: str, channel: Optional[discord.TextChannel] = None):
+    async def say(
+        self,
+        ctx: discord.ApplicationContext,
+        message: str,
+        channel: Optional[discord.TextChannel] = None,
+    ):
         """Написать сообщение от лица бота"""
         channel = channel or ctx.channel
         await channel.send(message)
@@ -33,8 +37,7 @@ class SendMessages(commands.Cog):
         return await self.bot.wait_for("message", check=check, timeout=timeout)
 
     @commands.slash_command()
-    async def echo(self, ctx: discord.ApplicationContext,
-                   channel_id, guild_id=None):
+    async def echo(self, ctx: discord.ApplicationContext, channel_id, guild_id=None):
         """Начать слушать сообщения пользователя и отправлять их в указанный чат
 
         Parameters
@@ -45,7 +48,9 @@ class SendMessages(commands.Cog):
         """
         accepted_person_ids = [389787190986670082, 434780487127400459]
         if ctx.author.id not in accepted_person_ids:
-            await ctx.respond("Вам не разрешено использовать данную команду", ephemeral=True)
+            await ctx.respond(
+                "Вам не разрешено использовать данную команду", ephemeral=True
+            )
             return
 
         try:
@@ -64,10 +69,14 @@ class SendMessages(commands.Cog):
             return
 
         try:
-            await ctx.respond(f"Отправьте сообщение, которое будет отправлено в `{channel.name}` сервера `{guild.name}`\n"
-                           "Чтобы остановить команду, отправьте `<<stop`")
+            await ctx.respond(
+                f"Отправьте сообщение, которое будет отправлено в `{channel.name}` сервера `{guild.name}`\n"
+                "Чтобы остановить команду, отправьте `<<stop`"
+            )
         except discord.HTTPException:
-            await ctx.respond(f"Нет прав на просмотр/отправку сообщений в этом канале", ephemeral=True)
+            await ctx.respond(
+                f"Нет прав на просмотр/отправку сообщений в этом канале", ephemeral=True
+            )
             return
 
         while True:
@@ -80,18 +89,21 @@ class SendMessages(commands.Cog):
                     break
 
                 if message.attachments:
-                    attachments = [await attachment.to_file() for attachment in message.attachments]
+                    attachments = [
+                        await attachment.to_file() for attachment in message.attachments
+                    ]
                     await channel.send(message.content, files=attachments)
                 else:
                     await channel.send(message.content)
                 await message.delete()
             except asyncio.TimeoutError:
-                await ctx.channel.send("Время команды истекло. Для продолжения используйте команду заново")
+                await ctx.channel.send(
+                    "Время команды истекло. Для продолжения используйте команду заново"
+                )
                 return
 
     @commands.slash_command()
-    async def event_members(self, ctx: discord.ApplicationContext,
-                            bounty: int = None):
+    async def event_members(self, ctx: discord.ApplicationContext, bounty: int = None):
         """Оповестить всех, кто находится в голосовом канале с Вами
 
         Parameters
@@ -102,24 +114,21 @@ class SendMessages(commands.Cog):
         voice_channel_id = ctx.author.voice.channel.id
         voice_channel = self.bot.get_channel(voice_channel_id)
         members = voice_channel.members
-        add_money_to_member = [f".add-money `<@{member.id}>` {bounty}" for member in members]
+        add_money_to_member = [
+            f".add-money `<@{member.id}>` {bounty}" for member in members
+        ]
         members_names = [f"<@{member.id}>" for member in members]
         embed = (
-            discord.Embed(
-                description=f"**Участники канала** <#{voice_channel_id}>"
-            )
+            discord.Embed(description=f"**Участники канала** <#{voice_channel_id}>")
             .set_footer(
                 text=f"Запрошено пользователем {ctx.author}",
-                icon_url=ctx.author.avatar.url
+                icon_url=ctx.author.avatar.url,
             )
-            .add_field(
-                name="",
-                value="\n".join(members_names)
-            )
+            .add_field(name="", value="\n".join(members_names))
             .add_field(
                 name="Команда для начисления кристаллов",
                 value="\n".join(add_money_to_member),
-                inline=False
+                inline=False,
             )
         )
         await ctx.respond(embed=embed)

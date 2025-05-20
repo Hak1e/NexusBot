@@ -1,4 +1,6 @@
 import datetime
+
+
 import enum
 
 import asyncpg
@@ -163,8 +165,7 @@ class ModalWindow(Modal):
             pool=self.pool,
             ctx=ctx,
             title=f"Билет #{ticket_number} создан",
-            description=f"Создан участником {
-                ctx.author.mention}(`{ctx.author.id}`)\n"
+            description=f"Создан участником {ctx.author.mention}(`{ctx.author.id}`)\n"
             f"**Категория**\n"
             f"{self.ticket_purpose}\n"
             f"**Описание**\n"
@@ -385,9 +386,7 @@ class Tickets(commands.Cog):
                 pool=self.pool,
                 title=f"Билет #{ticket_number} закрыт",
                 ctx=ctx,
-                description=f"Закрыт участником {ctx.author.mention}(`{
-                    ctx.author.id
-                }`)",
+                description=f"Закрыт участником {ctx.author.mention}(`{ctx.author.id}`)",
                 color=discord.Color.yellow(),
             )
 

@@ -10,9 +10,7 @@ class Member(commands.Cog):
         self.pool: asyncpg.Pool = self.bot.get_pool()
 
     async def get_goodbye_channel(self, member):
-        query = ("SELECT id "
-                 "FROM goodbye_channel "
-                 "WHERE guild_id = $1")
+        query = "SELECT id " "FROM goodbye_channel " "WHERE guild_id = $1"
         channel_id = await self.pool.fetchval(query, member.guild.id)
         if channel_id:
             channel = member.guild.get_channel(channel_id)
@@ -21,9 +19,9 @@ class Member(commands.Cog):
             return None
 
     async def get_sync_settings(self, guild_id):
-        query = ("SELECT member_name, member_roles "
-                 "FROM guild_sync "
-                 "WHERE guild_id = $1")
+        query = (
+            "SELECT member_name, member_roles " "FROM guild_sync " "WHERE guild_id = $1"
+        )
         sync_settings = await self.pool.fetchrow(query, guild_id)
         print(f"Sync settings: {sync_settings}")
         sync_member_name = sync_settings["member_name"]
@@ -57,38 +55,46 @@ class Member(commands.Cog):
         if channel is None:
             return
 
-        embed = discord.Embed(title="🚪 Пользователь ушел", color=discord.Color.red(),
-                              description=f"**Пользователь:** `{member.name} ({member.id})`\n"
-                                          f"**Всего пользователей:** `{len(member.guild.members)}`")
+        embed = discord.Embed(
+            title="🚪 Пользователь ушел",
+            color=discord.Color.red(),
+            description=f"**Пользователь:** `{member.name} ({member.id})`\n"
+            f"**Всего пользователей:** `{len(member.guild.members)}`",
+        )
         embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
 
         await channel.send(embed=embed)
 
     # @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
-        sync_member_name, sync_member_roles = await self.get_sync_settings(member.guild.id)
+        sync_member_name, sync_member_roles = await self.get_sync_settings(
+            member.guild.id
+        )
         if sync_member_name:
-            query = ("SELECT nick "
-                     "FROM guild_member "
-                     "WHERE id = $1 and guild_id = $2")
-            nick = await self.pool.fetchval(query, member.id,
-                                            member.guild.id)
+            query = (
+                "SELECT nick " "FROM guild_member " "WHERE id = $1 and guild_id = $2"
+            )
+            nick = await self.pool.fetchval(query, member.id, member.guild.id)
             if nick:
                 await member.edit(nick=nick)
         if sync_member_roles:
-            query = ("SELECT role_id "
-                     "FROM member_role "
-                     "WHERE member_id = $1 and guild_id = $2")
-            member_roles_ids = await self.pool.fetch(query, member.id,
-                                                     member.guild.id)
+            query = (
+                "SELECT role_id "
+                "FROM member_role "
+                "WHERE member_id = $1 and guild_id = $2"
+            )
+            member_roles_ids = await self.pool.fetch(query, member.id, member.guild.id)
             if member_roles_ids:
                 member_roles_ids = [role_id["role_id"] for role_id in member_roles_ids]
-                member_roles = [member.guild.get_role(role_id) for role_id in member_roles_ids]
+                member_roles = [
+                    member.guild.get_role(role_id) for role_id in member_roles_ids
+                ]
                 await member.add_roles(*member_roles)
 
     # @commands.Cog.listener()
-    async def on_member_update(self, old_member_info: discord.Member,
-                               current_member_info: discord.Member):
+    async def on_member_update(
+        self, old_member_info: discord.Member, current_member_info: discord.Member
+    ):
         # nickname, roles
         pass
 

@@ -11,65 +11,88 @@ class AuthorSettings:
         self.pool: asyncpg.Pool = bot.get_pool()
 
     async def get_voice_channel_author_id(self, voice_channel):
-        get_channel_author_id = "SELECT user_id " \
-                                "FROM lobby_voice_channel_author " \
-                                "WHERE voice_channel_id = $1"
-        channel_author_id = await self.pool.fetchval(get_channel_author_id, voice_channel.id)
+        get_channel_author_id = (
+            "SELECT user_id "
+            "FROM lobby_voice_channel_author "
+            "WHERE voice_channel_id = $1"
+        )
+        channel_author_id = await self.pool.fetchval(
+            get_channel_author_id, voice_channel.id
+        )
         return channel_author_id
 
     async def update_voice_channel_name(self, voice_channel):
         channel_author_id = await self.get_voice_channel_author_id(voice_channel)
-        update_channel_settings = ("INSERT INTO lobby_voice_channel_settings ("
-                                   "user_id, guild_id,"
-                                   "channel_name) "
-                                   "VALUES ($1, $2, $3)"
-                                   "ON CONFLICT (guild_id, user_id) DO UPDATE "
-                                   "SET channel_name = $3")
-        await self.pool.execute(update_channel_settings, channel_author_id,
-                                voice_channel.guild.id, voice_channel.name)
+        update_channel_settings = (
+            "INSERT INTO lobby_voice_channel_settings ("
+            "user_id, guild_id,"
+            "channel_name) "
+            "VALUES ($1, $2, $3)"
+            "ON CONFLICT (guild_id, user_id) DO UPDATE "
+            "SET channel_name = $3"
+        )
+        await self.pool.execute(
+            update_channel_settings,
+            channel_author_id,
+            voice_channel.guild.id,
+            voice_channel.name,
+        )
 
     async def update_voice_channel_limit(self, voice_channel):
         channel_author_id = await self.get_voice_channel_author_id(voice_channel)
-        update_channel_settings = ("INSERT INTO lobby_voice_channel_settings ("
-                                   "user_id, guild_id,"
-                                   "user_limit) "
-                                   "VALUES ($1, $2, $3)"
-                                   "ON CONFLICT (guild_id, user_id) DO UPDATE "
-                                   "SET user_limit = $3")
-        await self.pool.execute(update_channel_settings, channel_author_id,
-                                voice_channel.guild.id, voice_channel.user_limit)
+        update_channel_settings = (
+            "INSERT INTO lobby_voice_channel_settings ("
+            "user_id, guild_id,"
+            "user_limit) "
+            "VALUES ($1, $2, $3)"
+            "ON CONFLICT (guild_id, user_id) DO UPDATE "
+            "SET user_limit = $3"
+        )
+        await self.pool.execute(
+            update_channel_settings,
+            channel_author_id,
+            voice_channel.guild.id,
+            voice_channel.user_limit,
+        )
 
     async def update_voice_channel_bitrate(self, voice_channel):
         channel_author_id = await self.get_voice_channel_author_id(voice_channel)
-        update_channel_settings = ("INSERT INTO lobby_voice_channel_settings ("
-                                   "user_id, guild_id,"
-                                   "bitrate) "
-                                   "VALUES ($1, $2, $3)"
-                                   "ON CONFLICT (guild_id, user_id) DO UPDATE "
-                                   "SET bitrate = $3")
-        await self.pool.execute(update_channel_settings, channel_author_id,
-                                voice_channel.guild.id, voice_channel.bitrate)
+        update_channel_settings = (
+            "INSERT INTO lobby_voice_channel_settings ("
+            "user_id, guild_id,"
+            "bitrate) "
+            "VALUES ($1, $2, $3)"
+            "ON CONFLICT (guild_id, user_id) DO UPDATE "
+            "SET bitrate = $3"
+        )
+        await self.pool.execute(
+            update_channel_settings,
+            channel_author_id,
+            voice_channel.guild.id,
+            voice_channel.bitrate,
+        )
 
     async def update_voice_channel_overwrites(self, voice_channel):
         channel_author_id = await self.get_voice_channel_author_id(voice_channel)
         channel_overwrites = voice_channel.overwrites
         data = []
         for target, permissions in channel_overwrites.items():
-            data.append(
-                {
-                    "target": target.id,
-                    "permissions": dict(permissions)
-                }
-            )
+            data.append({"target": target.id, "permissions": dict(permissions)})
         channel_overwrites_json = json.dumps(data)
-        update_channel_settings = ("INSERT INTO lobby_voice_channel_settings ("
-                                   "user_id, guild_id,"
-                                   "channel_overwrites) "
-                                   "VALUES ($1, $2, $3)"
-                                   "ON CONFLICT (guild_id, user_id) DO UPDATE "
-                                   "SET channel_overwrites = $3")
-        await self.pool.execute(update_channel_settings, channel_author_id,
-                                voice_channel.guild.id, channel_overwrites_json)
+        update_channel_settings = (
+            "INSERT INTO lobby_voice_channel_settings ("
+            "user_id, guild_id,"
+            "channel_overwrites) "
+            "VALUES ($1, $2, $3)"
+            "ON CONFLICT (guild_id, user_id) DO UPDATE "
+            "SET channel_overwrites = $3"
+        )
+        await self.pool.execute(
+            update_channel_settings,
+            channel_author_id,
+            voice_channel.guild.id,
+            channel_overwrites_json,
+        )
 
 
 class RequestedRole(str, enum.Enum):
@@ -98,32 +121,41 @@ class LobbyChannelSettings:
         if user_limit == 0:
             user_limit = "∞"
         if len(voice_channel.members) >= voice_channel.user_limit != 0:
-            new_embed.set_field_at(1, name="",
-                                   value="\n**❌ Канал заполнен**", inline=False)
+            new_embed.set_field_at(
+                1, name="", value="\n**❌ Канал заполнен**", inline=False
+            )
         else:
-            new_embed.set_field_at(1, name="",
-                                   value=f"\n**✅ Канал:** {voice_channel.mention}", inline=False)
-        new_embed.set_footer(text=f"Участников: {len(voice_channel.members)}/{user_limit}")
+            new_embed.set_field_at(
+                1,
+                name="",
+                value=f"\n**✅ Канал:** {voice_channel.mention}",
+                inline=False,
+            )
+        new_embed.set_footer(
+            text=f"Участников: {len(voice_channel.members)}/{user_limit}"
+        )
         await message.edit(embed=new_embed)
 
     # region Get
 
     async def get_channel_creator_id(self, lobby_voice_channel_id):
-        query = ("SELECT voice_creator_id "
-                 "FROM lobby_created_voice_channel "
-                 "WHERE id = $1")
+        query = (
+            "SELECT voice_creator_id "
+            "FROM lobby_created_voice_channel "
+            "WHERE id = $1"
+        )
         return await self.pool.fetchval(query, lobby_voice_channel_id)
 
     async def get_text_channel_id(self, voice_channel_creator_id):
-        query = ("SELECT text_channel_id "
-                 "FROM lobby_voice_channel_creator_settings "
-                 "WHERE id = $1")
+        query = (
+            "SELECT text_channel_id "
+            "FROM lobby_voice_channel_creator_settings "
+            "WHERE id = $1"
+        )
         return await self.pool.fetchval(query, voice_channel_creator_id)
 
     async def get_lobby_message_id(self, voice_channel):
-        query = ("SELECT id "
-                 "FROM lobby_message "
-                 "WHERE voice_channel_id = $1")
+        query = "SELECT id " "FROM lobby_message " "WHERE voice_channel_id = $1"
         message_id = await self.pool.fetchval(query, voice_channel.id)
         return message_id
 
@@ -137,13 +169,14 @@ class LobbyChannelSettings:
         text_channel_id = await self.get_text_channel_id(channel_creator_id)
         if not text_channel_id:
             return
-        message = await self.get_message_from_discord(voice_channel, message_id,
-                                                      text_channel_id)
+        message = await self.get_message_from_discord(
+            voice_channel, message_id, text_channel_id
+        )
         return message or None
 
-    async def get_message_from_discord(self, voice_channel: discord.VoiceChannel,
-                                       message_id, text_channel_id,
-                                       row=0):
+    async def get_message_from_discord(
+        self, voice_channel: discord.VoiceChannel, message_id, text_channel_id, row=0
+    ):
         if row == 4:
             return
         try:
@@ -160,17 +193,18 @@ class LobbyChannelSettings:
             return message
         except discord.errors.NotFound:
             await asyncio.sleep(1)
-            message = await self.get_message_from_discord(voice_channel, message_id,
-                                                          text_channel_id, row + 1)
+            message = await self.get_message_from_discord(
+                voice_channel, message_id, text_channel_id, row + 1
+            )
             return message or None
 
-    async def get_custom_channel_settings(self, guild_id,
-                                          member):
-        query = ("SELECT channel_name, bitrate, user_limit "
-                 "FROM lobby_voice_channel_settings "
-                 "WHERE guild_id = $1 and user_id = $2")
-        result = await self.pool.fetchrow(query, guild_id,
-                                          member.id)
+    async def get_custom_channel_settings(self, guild_id, member):
+        query = (
+            "SELECT channel_name, bitrate, user_limit "
+            "FROM lobby_voice_channel_settings "
+            "WHERE guild_id = $1 and user_id = $2"
+        )
+        result = await self.pool.fetchrow(query, guild_id, member.id)
         custom_channel_name = None
         bitrate = 64000
         user_limit = 0
@@ -182,29 +216,36 @@ class LobbyChannelSettings:
         return custom_channel_name, bitrate, user_limit
 
     async def get_voice_channel_author_id(self, voice_channel):
-        get_channel_author_id = "SELECT user_id " \
-                                "FROM lobby_voice_channel_author " \
-                                "WHERE voice_channel_id = $1"
-        channel_author_id = await self.pool.fetchval(get_channel_author_id, voice_channel.id)
+        get_channel_author_id = (
+            "SELECT user_id "
+            "FROM lobby_voice_channel_author "
+            "WHERE voice_channel_id = $1"
+        )
+        channel_author_id = await self.pool.fetchval(
+            get_channel_author_id, voice_channel.id
+        )
         return channel_author_id
 
-    async def get_channel_overwrites(self, category,
-                                     member):
+    async def get_channel_overwrites(self, category, member):
         initial_category_overwrites = category.overwrites
         category_overwrites = category.overwrites.copy()
-        member_overwrite = discord.PermissionOverwrite(view_channel=True, connect=True,
-                                                       move_members=True)
-        query = ("SELECT channel_overwrites "
-                 "FROM lobby_voice_channel_settings "
-                 "WHERE guild_id = $1 and user_id = $2")
-        channel_overwrites = await self.pool.fetchval(query, member.guild.id,
-                                                      member.id)
+        member_overwrite = discord.PermissionOverwrite(
+            view_channel=True, connect=True, move_members=True
+        )
+        query = (
+            "SELECT channel_overwrites "
+            "FROM lobby_voice_channel_settings "
+            "WHERE guild_id = $1 and user_id = $2"
+        )
+        channel_overwrites = await self.pool.fetchval(query, member.guild.id, member.id)
         if channel_overwrites:
             channel_overwrites = json.loads(channel_overwrites)
             for target_id_permissions in channel_overwrites:
                 target_id = target_id_permissions["target"]
                 permissions = target_id_permissions["permissions"]
-                target = member.guild.get_member(target_id) or member.guild.get_role(target_id)
+                target = member.guild.get_member(target_id) or member.guild.get_role(
+                    target_id
+                )
                 if not target:
                     continue
                 permission_overwrite = discord.PermissionOverwrite()
@@ -220,18 +261,21 @@ class LobbyChannelSettings:
 
         return category_overwrites
 
-    async def get_channel_required_role(self, member,
-                                        channel_id):
-        query = ("SELECT role_needed "
-                 "FROM lobby_voice_channel_creator_settings "
-                 "WHERE id = $1")
+    async def get_channel_required_role(self, member, channel_id):
+        query = (
+            "SELECT role_needed "
+            "FROM lobby_voice_channel_creator_settings "
+            "WHERE id = $1"
+        )
         role_required = await self.pool.fetchval(query, channel_id)
         if not role_required:
             return RequestedRole.not_needed
 
-        get_role_required_query = ("SELECT role_id "
-                                   "FROM lobby_voice_channel_creator_role "
-                                   "WHERE voice_channel_id = $1")
+        get_role_required_query = (
+            "SELECT role_id "
+            "FROM lobby_voice_channel_creator_role "
+            "WHERE voice_channel_id = $1"
+        )
         result = await self.pool.fetch(get_role_required_query, channel_id)
         required_roles_ids = []
         if result:
@@ -254,55 +298,55 @@ class LobbyChannelSettings:
     # endregion
 
     async def log_needed(self, voice_channel_id):
-        query = ("SELECT log_needed "
-                 "FROM lobby_voice_channel_creator_settings "
-                 "WHERE id = $1")
+        query = (
+            "SELECT log_needed "
+            "FROM lobby_voice_channel_creator_settings "
+            "WHERE id = $1"
+        )
         return await self.pool.fetchval(query, int(voice_channel_id))
 
-    async def save_message_id_to_db(self, voice_channel,
-                                    message):
-        query = ("INSERT INTO lobby_message (id, voice_channel_id)"
-                 "VALUES ($1, $2)")
-        await self.pool.execute(query, message.id,
-                                voice_channel.id)
+    async def save_message_id_to_db(self, voice_channel, message):
+        query = "INSERT INTO lobby_message (id, voice_channel_id)" "VALUES ($1, $2)"
+        await self.pool.execute(query, message.id, voice_channel.id)
 
     async def delete_message_id_from_db(self, message_id):
-        query = ("DELETE FROM lobby_message "
-                 "WHERE id = $1")
+        query = "DELETE FROM lobby_message " "WHERE id = $1"
         await self.pool.execute(query, message_id)
 
-    async def set_voice_channel_author_id(self, member,
-                                          voice_channel):
-        query = ("INSERT INTO lobby_voice_channel_author(voice_channel_id, user_id) "
-                 "VALUES ($1, $2)")
-        await self.pool.execute(query, voice_channel.id,
-                                member.id)
+    async def set_voice_channel_author_id(self, member, voice_channel):
+        query = (
+            "INSERT INTO lobby_voice_channel_author(voice_channel_id, user_id) "
+            "VALUES ($1, $2)"
+        )
+        await self.pool.execute(query, voice_channel.id, member.id)
 
     async def delete_voice_channel_author_id(self, voice_channel):
-        query = ("DELETE FROM lobby_voice_channel_author "
-                 "WHERE voice_channel_id = $1")
+        query = "DELETE FROM lobby_voice_channel_author " "WHERE voice_channel_id = $1"
         await self.pool.execute(query, voice_channel.id)
 
     async def delete_created_voice_channel_from_db(self, voice_channel):
-        query = ("DELETE FROM lobby_created_voice_channel "
-                 "WHERE id = $1")
+        query = "DELETE FROM lobby_created_voice_channel " "WHERE id = $1"
         await self.pool.execute(query, voice_channel.id)
 
-    async def add_lobby_channel_to_db(self, created_channel_id,
-                                      channel_creator_id):
-        query = ("INSERT INTO lobby_created_voice_channel (id, voice_creator_id) "
-                 "VALUES ($1, $2)")
-        await self.pool.execute(query, created_channel_id,
-                                channel_creator_id)
+    async def add_lobby_channel_to_db(self, created_channel_id, channel_creator_id):
+        query = (
+            "INSERT INTO lobby_created_voice_channel (id, voice_creator_id) "
+            "VALUES ($1, $2)"
+        )
+        await self.pool.execute(query, created_channel_id, channel_creator_id)
 
     async def is_custom(self, channel_id):
-        query = ("SELECT voice_creator_id "
-                 "FROM lobby_created_voice_channel "
-                 "WHERE id = $1")
+        query = (
+            "SELECT voice_creator_id "
+            "FROM lobby_created_voice_channel "
+            "WHERE id = $1"
+        )
         voice_creator_id = await self.pool.fetchval(query, channel_id)
         if not voice_creator_id:
             return
-        query = ("SELECT custom "
-                 "FROM lobby_voice_channel_creator_settings "
-                 "WHERE id = $1")
+        query = (
+            "SELECT custom "
+            "FROM lobby_voice_channel_creator_settings "
+            "WHERE id = $1"
+        )
         return await self.pool.fetchval(query, voice_creator_id)

@@ -8,9 +8,7 @@ class AuthorCommands(commands.Cog):
         self.pool = bot.get_pool()
 
     async def get_bot_author(self, member_id):
-        query = ("SELECT * "
-                 "FROM bot_author "
-                 "WHERE user_id = $1")
+        query = "SELECT * " "FROM bot_author " "WHERE user_id = $1"
         bot_author_ids = await self.pool.fetch(query, member_id)
         if not bot_author_ids:
             return
@@ -23,7 +21,9 @@ class AuthorCommands(commands.Cog):
         # Команда для просмотра сообщений сервера
         bot_author_ids = await self.get_bot_author(ctx.author.id)
         if ctx.author.id not in bot_author_ids:
-            return await ctx.respond("Вы не можете использовать эту команду", ephemeral=True)
+            return await ctx.respond(
+                "Вы не можете использовать эту команду", ephemeral=True
+            )
 
         guild: discord.Guild = await self.bot.fetch_guild(num)
         channels = await guild.fetch_channels()
@@ -42,17 +42,23 @@ class AuthorCommands(commands.Cog):
         """Команда для автора бота"""
         bot_author_ids = await self.get_bot_author(ctx.author.id)
         if ctx.author.id not in bot_author_ids:
-            return await ctx.respond("Вы не можете использовать эту команду", ephemeral=True)
+            return await ctx.respond(
+                "Вы не можете использовать эту команду", ephemeral=True
+            )
         guild: discord.Guild = await self.bot.fetch_guild(id)
         await guild.leave()
-        await ctx.respond(f"Бот успешно вышел с сервера: {guild.name} `({guild.id})`", ephemeral=True)
+        await ctx.respond(
+            f"Бот успешно вышел с сервера: {guild.name} `({guild.id})`", ephemeral=True
+        )
 
     @commands.slash_command()
     async def get_guilds(self, ctx: discord.ApplicationContext):
         """Команда для автора бота"""
         bot_author_ids = await self.get_bot_author(ctx.author.id)
         if ctx.author.id not in bot_author_ids:
-            return await ctx.respond("Вы не можете использовать эту команду", ephemeral=True)
+            return await ctx.respond(
+                "Вы не можете использовать эту команду", ephemeral=True
+            )
         guilds = await self.bot.fetch_guilds().flatten()
 
         counter = 1
@@ -74,19 +80,20 @@ class AuthorCommands(commands.Cog):
         """Команда для автора бота"""
         bot_author_ids = await self.get_bot_author(ctx.author.id)
         if not bot_author_ids or ctx.author.id not in bot_author_ids:
-            return await ctx.respond("Вы не можете использовать эту команду", ephemeral=True)
+            return await ctx.respond(
+                "Вы не можете использовать эту команду", ephemeral=True
+            )
         guilds = await self.bot.fetch_guilds().flatten()
         for guild in guilds:
             guild = await self.bot.fetch_guild(guild.id)
-            query = ("INSERT INTO guild (id, owner_id) "
-                     "VALUES ($1, $2)"
-                     "ON CONFLICT (id) DO NOTHING")
-            await self.pool.execute(query, guild.id,
-                                    guild.owner_id)
+            query = (
+                "INSERT INTO guild (id, owner_id) "
+                "VALUES ($1, $2)"
+                "ON CONFLICT (id) DO NOTHING"
+            )
+            await self.pool.execute(query, guild.id, guild.owner_id)
         await ctx.respond(f"Серверы успешно синхронизированы", ephemeral=True)
 
 
 def setup(bot):
     bot.add_cog(AuthorCommands(bot))
-
-

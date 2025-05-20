@@ -11,8 +11,7 @@ class PageButtons(discord.ui.View):
         self.stop()
 
     @staticmethod
-    async def update_buttons(ctx, btn_left=False,
-                             btn_right=False):
+    async def update_buttons(ctx, btn_left=False, btn_right=False):
         component: list = ctx.message.components.copy()
         custom_buttons_ids = [button.custom_id for button in component[0].children]
 
@@ -21,78 +20,90 @@ class PageButtons(discord.ui.View):
                 label="◀◀",
                 style=discord.ButtonStyle.blurple,
                 disabled=btn_left,
-                custom_id=custom_buttons_ids[0]
+                custom_id=custom_buttons_ids[0],
             ),
             discord.ui.Button(
                 label="◀",
                 style=discord.ButtonStyle.blurple,
                 disabled=btn_left,
-                custom_id=custom_buttons_ids[1]
+                custom_id=custom_buttons_ids[1],
             ),
             discord.ui.Button(
                 label="▶",
                 style=discord.ButtonStyle.blurple,
                 disabled=btn_right,
-                custom_id=custom_buttons_ids[2]
+                custom_id=custom_buttons_ids[2],
             ),
             discord.ui.Button(
                 label="▶▶",
                 style=discord.ButtonStyle.blurple,
                 disabled=btn_right,
-                custom_id=custom_buttons_ids[3]
+                custom_id=custom_buttons_ids[3],
             ),
             discord.ui.Button(
                 label="✖️",
                 style=discord.ButtonStyle.red,
                 disabled=False,
-                custom_id=custom_buttons_ids[4]
-            )
+                custom_id=custom_buttons_ids[4],
+            ),
         ]
         return updated_buttons
 
     @discord.ui.button(label="◀◀", style=discord.ButtonStyle.blurple)
-    async def first_page(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
+    async def first_page(
+        self, button: discord.ui.Button, ctx: discord.MessageInteraction
+    ):
         if self.current_page != 0:
             self.current_page = 0
             buttons = await self.update_buttons(ctx, btn_left=True)
-            await ctx.response.edit_message(embed=self.pages[self.current_page],
-                                            components=buttons)
+            await ctx.response.edit_message(
+                embed=self.pages[self.current_page], components=buttons
+            )
         else:
             await ctx.response.defer()
 
     @discord.ui.button(label="◀", style=discord.ButtonStyle.blurple)
-    async def previous_page(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
+    async def previous_page(
+        self, button: discord.ui.Button, ctx: discord.MessageInteraction
+    ):
         if self.current_page > 0:
             self.current_page -= 1
             if self.current_page == 0:
                 buttons = await self.update_buttons(ctx, btn_left=True)
-                await ctx.response.edit_message(embed=self.pages[self.current_page],
-                                                components=buttons)
+                await ctx.response.edit_message(
+                    embed=self.pages[self.current_page], components=buttons
+                )
             else:
                 await ctx.response.edit_message(embed=self.pages[self.current_page])
         else:
             await ctx.response.defer()
 
     @discord.ui.button(label="▶", style=discord.ButtonStyle.blurple)
-    async def next_page(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
+    async def next_page(
+        self, button: discord.ui.Button, ctx: discord.MessageInteraction
+    ):
         if self.current_page < len(self.pages) - 1:
             self.current_page += 1
             if self.current_page == len(self.pages) - 1:
                 buttons = await self.update_buttons(ctx, btn_right=True)
-                await ctx.response.edit_message(embed=self.pages[self.current_page],
-                                                components=buttons)
+                await ctx.response.edit_message(
+                    embed=self.pages[self.current_page], components=buttons
+                )
             else:
                 await ctx.response.edit_message(embed=self.pages[self.current_page])
         else:
             await ctx.response.defer()
 
     @discord.ui.button(label="▶▶", style=discord.ButtonStyle.blurple)
-    async def last_page(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
+    async def last_page(
+        self, button: discord.ui.Button, ctx: discord.MessageInteraction
+    ):
         if self.current_page != len(self.pages) - 1:
             self.current_page = len(self.pages) - 1
             buttons = await self.update_buttons(ctx, btn_right=True)
-            await ctx.response.edit_message(embed=self.pages[self.current_page],
-                                            components=buttons)
+            await ctx.response.edit_message(
+                embed=self.pages[self.current_page], components=buttons
+            )
         else:
             await ctx.response.defer()
 
