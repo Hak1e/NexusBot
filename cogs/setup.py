@@ -375,21 +375,23 @@ class SetupBot(commands.Cog):
             discord.Embed(title="Роли с доступом к тикетам")
             .add_field(
                 name="Вопрос",
-                value="\n".join(question_roles)
-                if question_roles
-                else roles_not_found_message,
+                value=(
+                    "\n".join(question_roles)
+                    if question_roles
+                    else roles_not_found_message
+                ),
             )
             .add_field(
                 name="Жалоба",
-                value="\n".join(report_roles)
-                if report_roles
-                else roles_not_found_message,
+                value=(
+                    "\n".join(report_roles) if report_roles else roles_not_found_message
+                ),
             )
             .add_field(
                 name="Предложение",
-                value="\n".join(offer_roles)
-                if offer_roles
-                else roles_not_found_message,
+                value=(
+                    "\n".join(offer_roles) if offer_roles else roles_not_found_message
+                ),
             )
         )
         await ctx.respond(embed=embed, ephemeral=ephemeral)

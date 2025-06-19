@@ -1,5 +1,4 @@
 import os
-import typing
 
 import asyncpg
 from dotenv import load_dotenv
@@ -10,11 +9,11 @@ load_dotenv()
 class Database:
     def __init__(self):
         self.host = os.getenv("HOST")
-        self.port = int(os.getenv("PORT"))
+        self.port = int(os.getenv("PORT"))  # type: ignore
         self.user = os.getenv("USER")
         self.password = os.getenv("PASSWORD")
         self.db_name = os.getenv("DATABASE_NAME")
-        self._pool: typing.Optional[asyncpg.Pool] = None
+        self._pool: asyncpg.Pool
         self.is_closed: bool = False
 
     async def connect(self):

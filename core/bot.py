@@ -1,5 +1,6 @@
 import logging
 
+import asyncpg
 import discord
 from discord.ext import commands
 
@@ -13,7 +14,7 @@ class Nexus(commands.Bot):
         intents = discord.Intents.all()
         super().__init__(intents=intents)
         self.db = Database()
-        self.pool = None
+        self.pool: asyncpg.pool
         self.bot = commands.Bot
         self.persistent_views_added = False
 
