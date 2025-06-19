@@ -139,7 +139,15 @@ class BaseDashboardButtons(discord.ui.View):
             return
         channel: discord.VoiceChannel = ctx.channel  # type: ignore
         members = []
+
+        query = ("SELECT id "
+                 "FROM guild_mute_role "
+                 "WHERE guild_id = $1")
+        muted_role_id = await self.pool.fetchval(query, ctx.guild.id)
+
         for value, permission in channel.overwrites.items():
+            if value.id == muted_role_id:
+                continue
             if permission.connect is False:
                 members.append(value)
         if not members:
