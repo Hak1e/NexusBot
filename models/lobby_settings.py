@@ -1,6 +1,6 @@
 import asyncpg
 import json
-import disnake
+import discord
 import enum
 import asyncio
 
@@ -141,7 +141,7 @@ class LobbyChannelSettings:
                                                       text_channel_id)
         return message or None
 
-    async def get_message_from_discord(self, voice_channel: disnake.VoiceChannel,
+    async def get_message_from_discord(self, voice_channel: discord.VoiceChannel,
                                        message_id, text_channel_id,
                                        row=0):
         if row == 4:
@@ -158,7 +158,7 @@ class LobbyChannelSettings:
             #             break
             #         await asyncio.sleep(1)
             return message
-        except disnake.errors.NotFound:
+        except discord.errors.NotFound:
             await asyncio.sleep(1)
             message = await self.get_message_from_discord(voice_channel, message_id,
                                                           text_channel_id, row + 1)
@@ -192,7 +192,7 @@ class LobbyChannelSettings:
                                      member):
         initial_category_overwrites = category.overwrites
         category_overwrites = category.overwrites.copy()
-        member_overwrite = disnake.PermissionOverwrite(view_channel=True, connect=True,
+        member_overwrite = discord.PermissionOverwrite(view_channel=True, connect=True,
                                                        move_members=True)
         query = ("SELECT channel_overwrites "
                  "FROM lobby_voice_channel_settings "
@@ -207,7 +207,7 @@ class LobbyChannelSettings:
                 target = member.guild.get_member(target_id) or member.guild.get_role(target_id)
                 if not target:
                     continue
-                permission_overwrite = disnake.PermissionOverwrite()
+                permission_overwrite = discord.PermissionOverwrite()
                 for permission, value in permissions.items():
                     setattr(permission_overwrite, permission, value)
 

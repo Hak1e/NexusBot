@@ -1,7 +1,7 @@
-import disnake
+import discord
 
 
-class PageButtons(disnake.ui.View):
+class PageButtons(discord.ui.View):
     def __init__(self, pages, timeout=60):
         super().__init__(timeout=timeout)
         self.pages = pages
@@ -17,41 +17,41 @@ class PageButtons(disnake.ui.View):
         custom_buttons_ids = [button.custom_id for button in component[0].children]
 
         updated_buttons = [
-            disnake.ui.Button(
+            discord.ui.Button(
                 label="◀◀",
-                style=disnake.ButtonStyle.blurple,
+                style=discord.ButtonStyle.blurple,
                 disabled=btn_left,
                 custom_id=custom_buttons_ids[0]
             ),
-            disnake.ui.Button(
+            discord.ui.Button(
                 label="◀",
-                style=disnake.ButtonStyle.blurple,
+                style=discord.ButtonStyle.blurple,
                 disabled=btn_left,
                 custom_id=custom_buttons_ids[1]
             ),
-            disnake.ui.Button(
+            discord.ui.Button(
                 label="▶",
-                style=disnake.ButtonStyle.blurple,
+                style=discord.ButtonStyle.blurple,
                 disabled=btn_right,
                 custom_id=custom_buttons_ids[2]
             ),
-            disnake.ui.Button(
+            discord.ui.Button(
                 label="▶▶",
-                style=disnake.ButtonStyle.blurple,
+                style=discord.ButtonStyle.blurple,
                 disabled=btn_right,
                 custom_id=custom_buttons_ids[3]
             ),
-            disnake.ui.Button(
+            discord.ui.Button(
                 label="✖️",
-                style=disnake.ButtonStyle.red,
+                style=discord.ButtonStyle.red,
                 disabled=False,
                 custom_id=custom_buttons_ids[4]
             )
         ]
         return updated_buttons
 
-    @disnake.ui.button(label="◀◀", style=disnake.ButtonStyle.blurple)
-    async def first_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="◀◀", style=discord.ButtonStyle.blurple)
+    async def first_page(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         if self.current_page != 0:
             self.current_page = 0
             buttons = await self.update_buttons(ctx, btn_left=True)
@@ -60,8 +60,8 @@ class PageButtons(disnake.ui.View):
         else:
             await ctx.response.defer()
 
-    @disnake.ui.button(label="◀", style=disnake.ButtonStyle.blurple)
-    async def previous_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="◀", style=discord.ButtonStyle.blurple)
+    async def previous_page(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         if self.current_page > 0:
             self.current_page -= 1
             if self.current_page == 0:
@@ -73,8 +73,8 @@ class PageButtons(disnake.ui.View):
         else:
             await ctx.response.defer()
 
-    @disnake.ui.button(label="▶", style=disnake.ButtonStyle.blurple)
-    async def next_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="▶", style=discord.ButtonStyle.blurple)
+    async def next_page(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         if self.current_page < len(self.pages) - 1:
             self.current_page += 1
             if self.current_page == len(self.pages) - 1:
@@ -86,8 +86,8 @@ class PageButtons(disnake.ui.View):
         else:
             await ctx.response.defer()
 
-    @disnake.ui.button(label="▶▶", style=disnake.ButtonStyle.blurple)
-    async def last_page(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="▶▶", style=discord.ButtonStyle.blurple)
+    async def last_page(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         if self.current_page != len(self.pages) - 1:
             self.current_page = len(self.pages) - 1
             buttons = await self.update_buttons(ctx, btn_right=True)
@@ -96,7 +96,7 @@ class PageButtons(disnake.ui.View):
         else:
             await ctx.response.defer()
 
-    @disnake.ui.button(label="✖️", style=disnake.ButtonStyle.red)
-    async def _close(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="✖️", style=discord.ButtonStyle.red)
+    async def _close(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         await ctx.message.delete()
         self.stop()

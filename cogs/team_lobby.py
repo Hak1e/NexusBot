@@ -1,5 +1,5 @@
-import disnake
-from disnake.ext import commands
+import discord
+from discord.ext import commands
 import asyncio
 import asyncpg
 import logging
@@ -11,7 +11,7 @@ MAX_WAIT_TIME = 20
 
 
 def generate_initial_embed_message(member):
-    return disnake.Embed(title="Добро пожаловать в комнату", color=disnake.Color.blurple(),
+    return discord.Embed(title="Добро пожаловать в комнату", color=discord.Color.blurple(),
                          description=f"Владелец: {member.mention}\n"
                                      "Используйте кнопки ниже для настройки канала.\n\n"
                                      "## ‼️Если кнопки перестали работать ‼️\n"
@@ -34,11 +34,11 @@ class LobbyInfoChannel(str, enum.Enum):
     not_needed = "not_needed"
 
 
-class MembersSelectMenu(disnake.ui.Select):
+class MembersSelectMenu(discord.ui.Select):
     def __init__(self, members,
                  pool, bot,
                  action=ChannelActions.kick):
-        options = [disnake.SelectOption(label=member.name, value=str(member.id)) for member in members]
+        options = [discord.SelectOption(label=member.name, value=str(member.id)) for member in members]
         super().__init__(
             placeholder="Выберите участников",
             min_values=1,
@@ -49,10 +49,10 @@ class MembersSelectMenu(disnake.ui.Select):
         self.pool = pool
         self.author_settings = AuthorSettings(bot)
 
-    async def callback(self, ctx: disnake.MessageInteraction):
+    async def callback(self, ctx: discord.MessageInteraction):
         await ctx.response.defer()
         selected_members_or_roles_ids = self.values
-        voice_channel: disnake.VoiceChannel = ctx.author.voice.channel
+        voice_channel: discord.VoiceChannel = ctx.author.voice.channel
         if self.action == ChannelActions.unban:
             for _id in selected_members_or_roles_ids:
                 member_or_role = ctx.guild.get_member(int(_id)) or ctx.guild.get_role(int(_id))
@@ -68,7 +68,7 @@ class MembersSelectMenu(disnake.ui.Select):
             await self.author_settings.update_voice_channel_overwrites(voice_channel)
 
 
-class BaseDashboardButtons(disnake.ui.View):
+class BaseDashboardButtons(discord.ui.View):
     def __init__(self, pool,
                  bot):
         self.bot = bot
@@ -88,17 +88,17 @@ class BaseDashboardButtons(disnake.ui.View):
                                      pool=self.pool, bot=self.bot)
             menus.append(menu)
 
-        view = disnake.ui.View()
+        view = discord.ui.View()
         menu_number = 0
         part = 1
         for counter in range(len(menus) + 1):
             if menu_number == MAX_SELECT_MENUS:
-                await ctx.send(view=view,
+                await ctx.respond(view=view,
                                ephemeral=True)
                 menu_number = 0
                 part += 1
             elif counter == len(menus):
-                await ctx.send(view=view,
+                await ctx.respond(view=view,
                                ephemeral=True)
             else:
                 view.add_item(menus[counter])
@@ -109,36 +109,36 @@ class BaseDashboardButtons(disnake.ui.View):
             return False
         return True
 
-    @disnake.ui.button(label="Выгнать", style=disnake.ButtonStyle.blurple)
-    async def kick_from_room(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="Выгнать", style=discord.ButtonStyle.blurple)
+    async def kick_from_room(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         if not await self.is_channel_author(ctx):
-            await ctx.send("Вы можете использовать кнопки только в своём канале", ephemeral=True)
+            await ctx.respond("Вы можете использовать кнопки только в своём канале", ephemeral=True)
             return
         members = [member for member in ctx.channel.members if member != ctx.author]
         if not members:
-            await ctx.send("В канале никого, кроме Вас", ephemeral=True)
+            await ctx.respond("В канале никого, кроме Вас", ephemeral=True)
             return
         await self.create_member_select_menus(ctx, members)
 
-    @disnake.ui.button(label="Забанить", style=disnake.ButtonStyle.blurple)
-    async def ban_in_room(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="Забанить", style=discord.ButtonStyle.blurple)
+    async def ban_in_room(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         if not await self.is_channel_author(ctx):
-            await ctx.send("Вы можете использовать кнопки только в своём канале", ephemeral=True)
+            await ctx.respond("Вы можете использовать кнопки только в своём канале", ephemeral=True)
             return
 
         members = [member for member in ctx.channel.members if member != ctx.author]
         if not members:
-            await ctx.send("В канале никого, кроме Вас", ephemeral=True)
+            await ctx.respond("В канале никого, кроме Вас", ephemeral=True)
             return
         await self.create_member_select_menus(ctx, members,
                                               ChannelActions.ban)
 
-    @disnake.ui.button(label="Разбанить", style=disnake.ButtonStyle.blurple)
-    async def unban_in_room(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="Разбанить", style=discord.ButtonStyle.blurple)
+    async def unban_in_room(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         if not await self.is_channel_author(ctx):
-            await ctx.send("Вы можете использовать кнопки только в своём канале", ephemeral=True)
+            await ctx.respond("Вы можете использовать кнопки только в своём канале", ephemeral=True)
             return
-        channel: disnake.VoiceChannel = ctx.channel  # type: ignore
+        channel: discord.VoiceChannel = ctx.channel  # type: ignore
         members = []
 
         query = ("SELECT id "
@@ -152,24 +152,24 @@ class BaseDashboardButtons(disnake.ui.View):
             if permission.connect is False:
                 members.append(value)
         if not members:
-            await ctx.send("В настройках канала нет заблокированных участников", ephemeral=True)
+            await ctx.respond("В настройках канала нет заблокированных участников", ephemeral=True)
             return
         await self.create_member_select_menus(ctx, members,
                                               ChannelActions.unban)
 
-    @disnake.ui.button(label="Лимит", style=disnake.ButtonStyle.blurple)
-    async def change_room_limit(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="Лимит", style=discord.ButtonStyle.blurple)
+    async def change_room_limit(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         if not await self.is_channel_author(ctx):
-            await ctx.send("Вы можете использовать кнопки только в своём канале", ephemeral=True)
+            await ctx.respond("Вы можете использовать кнопки только в своём канале", ephemeral=True)
             return
         modal_window = ModalWindow(ctx, self.pool,
                                    "0 - 99", "Введите лимит участников",
                                    ChannelActions.edit_user_limit, self.bot)
         await ctx.response.send_modal(modal_window)
-        assert isinstance(ctx.channel, disnake.VoiceChannel)
+        assert isinstance(ctx.channel, discord.VoiceChannel)
 
 
-class ModalWindow(disnake.ui.Modal):
+class ModalWindow(discord.ui.Modal):
     def __init__(self, ctx,
                  pool, placeholder_text,
                  text_input_title, action,
@@ -178,35 +178,35 @@ class ModalWindow(disnake.ui.Modal):
         self.action = action
         self.author_settings = AuthorSettings(bot)
         self.lobby_settings = LobbyChannelSettings(bot)
-        text_input = disnake.ui.TextInput(label="Новое значение", style=disnake.TextInputStyle.short,
+        text_input = discord.ui.TextInput(label="Новое значение", style=discord.TextInputStyle.short,
                                           max_length=50, custom_id=f"text_input-{ctx.id}",
                                           placeholder=placeholder_text)
         super().__init__(title=text_input_title, custom_id=f"modal-{ctx.id}",
                          components=text_input)
 
-    async def callback(self, ctx: disnake.ModalInteraction):
+    async def callback(self, ctx: discord.Interaction):
         voice_channel = ctx.channel
         key, value = list(ctx.text_values.items())[0]
         value = value[:1024]
         if self.action == ChannelActions.edit_name:
             await voice_channel.edit(name=value)
-            await ctx.send(embed=disnake.Embed(description=f"Название канала успешно изменено на: {value}",
-                                               color=disnake.Color.green()), ephemeral=True)
+            await ctx.respond(embed=discord.Embed(description=f"Название канала успешно изменено на: {value}",
+                                               color=discord.Color.green()), ephemeral=True)
             await self.author_settings.update_voice_channel_name(ctx.channel)
         elif self.action == ChannelActions.edit_bitrate:
             try:
                 await voice_channel.edit(bitrate=int(value) * 1000)
-                await ctx.send(embed=disnake.Embed(description=f"Битрейт канала успешно изменен на: `{value}`",
-                                                   color=disnake.Color.green()), ephemeral=True)
+                await ctx.respond(embed=discord.Embed(description=f"Битрейт канала успешно изменен на: `{value}`",
+                                                   color=discord.Color.green()), ephemeral=True)
                 await self.author_settings.update_voice_channel_bitrate(ctx.channel)
-            except disnake.errors.HTTPException:
-                await ctx.send(embed=disnake.Embed(description="Введено неверное значение битрейта",
-                                                   color=disnake.Color.red()), ephemeral=True)
+            except discord.errors.HTTPException:
+                await ctx.respond(embed=discord.Embed(description="Введено неверное значение битрейта",
+                                                   color=discord.Color.red()), ephemeral=True)
         elif self.action == ChannelActions.edit_user_limit:
             if 0 <= int(value) <= 99:
                 await voice_channel.edit(user_limit=value)
-                await ctx.send(embed=disnake.Embed(description=f"Лимит пользователей успешно изменен на: `{value}`",
-                                                   color=disnake.Color.green()), ephemeral=True)
+                await ctx.respond(embed=discord.Embed(description=f"Лимит пользователей успешно изменен на: `{value}`",
+                                                   color=discord.Color.green()), ephemeral=True)
                 message = await self.lobby_settings.get_lobby_info_message(ctx.channel)
                 if message:
                     await self.lobby_settings.update_lobby_info_message(message, ctx.channel)
@@ -214,42 +214,42 @@ class ModalWindow(disnake.ui.Modal):
                 if custom_room:
                     await self.author_settings.update_voice_channel_limit(ctx.channel)
             else:
-                await ctx.send(embed=disnake.Embed(description="Введено неверное значение лимита пользователей.\n"
+                await ctx.respond(embed=discord.Embed(description="Введено неверное значение лимита пользователей.\n"
                                                                "Введите число от 0 до 99 включительно",
-                                                   color=disnake.Color.red()), ephemeral=True)
+                                                   color=discord.Color.red()), ephemeral=True)
 
 
 class CustomChannelDashboardButtons(BaseDashboardButtons):
-    @disnake.ui.button(label="Скрыть/Открыть", style=disnake.ButtonStyle.blurple)
-    async def change_room_visibility(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="Скрыть/Открыть", style=discord.ButtonStyle.blurple)
+    async def change_room_visibility(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         if not await self.is_channel_author(ctx):
-            await ctx.send("Вы можете использовать кнопки только в своём канале", ephemeral=True)
+            await ctx.respond("Вы можете использовать кнопки только в своём канале", ephemeral=True)
             return
         default_role = ctx.guild.default_role
         current_view_channel_permission = ctx.channel.permissions_for(default_role).view_channel
         await ctx.channel.set_permissions(default_role, view_channel=not current_view_channel_permission)
-        await ctx.send("Комната скрыта" if current_view_channel_permission is not False else "Комната больше не скрыта",
+        await ctx.respond("Комната скрыта" if current_view_channel_permission is not False else "Комната больше не скрыта",
                        ephemeral=True)
-        assert isinstance(ctx.channel, disnake.VoiceChannel)
+        assert isinstance(ctx.channel, discord.VoiceChannel)
         await self.author_settings.update_voice_channel_overwrites(ctx.channel)
 
-    @disnake.ui.button(label="Закрыть/открыть", style=disnake.ButtonStyle.blurple)
-    async def change_room_access(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="Закрыть/открыть", style=discord.ButtonStyle.blurple)
+    async def change_room_access(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         if not await self.is_channel_author(ctx):
-            await ctx.send("Вы можете использовать кнопки только в своём канале", ephemeral=True)
+            await ctx.respond("Вы можете использовать кнопки только в своём канале", ephemeral=True)
             return
         default_role = ctx.guild.default_role
         current_connect_permission = ctx.channel.permissions_for(default_role).connect
         await ctx.channel.set_permissions(default_role, connect=not current_connect_permission)
-        assert isinstance(ctx.channel, disnake.VoiceChannel)
+        assert isinstance(ctx.channel, discord.VoiceChannel)
         await self.author_settings.update_voice_channel_overwrites(ctx.channel)
-        await ctx.send("Комната закрыта" if current_connect_permission is not False else "Комната больше не закрыта",
+        await ctx.respond("Комната закрыта" if current_connect_permission is not False else "Комната больше не закрыта",
                        ephemeral=True)
 
-    @disnake.ui.button(label="Название", style=disnake.ButtonStyle.blurple)
-    async def change_room_name(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="Название", style=discord.ButtonStyle.blurple)
+    async def change_room_name(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         if not await self.is_channel_author(ctx):
-            await ctx.send("Вы можете использовать кнопки только в своём канале", ephemeral=True)
+            await ctx.respond("Вы можете использовать кнопки только в своём канале", ephemeral=True)
             return
         modal_window = ModalWindow(ctx, self.pool,
                                    "Название канала", "Введите новое название канала",
@@ -257,16 +257,16 @@ class CustomChannelDashboardButtons(BaseDashboardButtons):
         await ctx.response.send_modal(modal_window)
         await self.author_settings.update_voice_channel_name(ctx.channel)
 
-    @disnake.ui.button(label="Битрейт", style=disnake.ButtonStyle.blurple)
-    async def change_room_bitrate(self, button: disnake.ui.Button, ctx: disnake.MessageInteraction):
+    @discord.ui.button(label="Битрейт", style=discord.ButtonStyle.blurple)
+    async def change_room_bitrate(self, button: discord.ui.Button, ctx: discord.MessageInteraction):
         if not await self.is_channel_author(ctx):
-            await ctx.send("Вы можете использовать кнопки только в своём канале", ephemeral=True)
+            await ctx.respond("Вы можете использовать кнопки только в своём канале", ephemeral=True)
             return
         modal_window = ModalWindow(ctx, self.pool,
                                    f"8 - {int(ctx.guild.bitrate_limit / 1000)}", "Введите битрейт канала",
                                    ChannelActions.edit_bitrate, self.bot)
         await ctx.response.send_modal(modal_window)
-        assert isinstance(ctx.channel, disnake.VoiceChannel)
+        assert isinstance(ctx.channel, discord.VoiceChannel)
         await self.author_settings.update_voice_channel_bitrate(ctx.channel)
 
 
@@ -279,8 +279,8 @@ class Lobby(commands.Cog):
         self.queued_message_id = []
 
     @staticmethod
-    def create_lobby_info_embed(member, role: disnake.Role,
-                                voice_channel: disnake.VoiceChannel, user_limit):
+    def create_lobby_info_embed(member, role: discord.Role,
+                                voice_channel: discord.VoiceChannel, user_limit):
         if user_limit == 0 or not user_limit:
             user_limit = "∞"
         try:
@@ -293,7 +293,7 @@ class Lobby(commands.Cog):
             role_icon_url = None
 
         embed = (
-            disnake.Embed(title="**Участники:**", color=color)
+            discord.Embed(title="**Участники:**", color=color)
             .add_field("", f"【1】{member.mention}\n")
             .add_field("", f"\n**✅ Канал:** {voice_channel.mention}",
                        inline=False)
@@ -315,7 +315,7 @@ class Lobby(commands.Cog):
                                                                     user_limit=user_limit)
             return voice_channel
         else:
-            if isinstance(required_role, disnake.Role):
+            if isinstance(required_role, discord.Role):
                 query = ("SELECT channel_with_role_prefix "
                          "FROM lobby_voice_channel_creator_settings "
                          "WHERE id = $1")
@@ -346,14 +346,14 @@ class Lobby(commands.Cog):
             return voice_channel
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: disnake.Member,
-                                    before: disnake.VoiceState, current: disnake.VoiceState):
+    async def on_voice_state_update(self, member: discord.Member,
+                                    before: discord.VoiceState, current: discord.VoiceState):
         if before.channel == current.channel:
             return
 
         guild_id = member.guild.id
-        temp_overwrites = {member.guild.default_role: disnake.PermissionOverwrite(view_channel=False),
-                           self.bot.user: disnake.PermissionOverwrite(view_channel=True)}
+        temp_overwrites = {member.guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                           self.bot.user: discord.PermissionOverwrite(view_channel=True)}
 
         if before.channel:
             logging.info(f"Before channel ({before.channel.name})")
@@ -384,7 +384,7 @@ class Lobby(commands.Cog):
                                 if counter > MAX_WAIT_TIME:
                                     try:
                                         await before.channel.edit(overwrites=channel_overwrites)
-                                    except disnake.NotFound:
+                                    except discord.NotFound:
                                         pass
                                     break
                                 try:
@@ -462,7 +462,7 @@ class Lobby(commands.Cog):
                             logging.info("Voice channel added to database")
                             await self.lobby_settings.set_voice_channel_author_id(member, voice_channel)
                             logging.info("Voice channel author id added to database")
-                        except disnake.errors.HTTPException:
+                        except discord.errors.HTTPException:
                             logging.error(f"{member.name}  left while moving")
                             await voice_channel.delete()
                             logging.error("Voice channel deleted")
@@ -489,7 +489,7 @@ class Lobby(commands.Cog):
                             logging.info("Voice channel added to database")
                             await self.lobby_settings.set_voice_channel_author_id(member, voice_channel)
                             logging.info("Voice channel author id added to database")
-                        except disnake.errors.HTTPException:
+                        except discord.errors.HTTPException:
                             logging.error(f"{member.name}  left while moving")
                             await voice_channel.delete()
                             logging.error(f"Voice channel ({voice_channel.name}) deleted")
@@ -506,7 +506,7 @@ class Lobby(commands.Cog):
                                     f"Пожалуйста, выберите подходящую роль в разделе <id:customize> или в канале с "
                                     f"выбором ролей")
                                 error_message = role_not_found_message or default_error_message
-                                embed = disnake.Embed(description=error_message, color=disnake.Color.red())
+                                embed = discord.Embed(description=error_message, color=discord.Color.red())
                                 if not role_not_found_message:
                                     await voice_channel.send(f"{member.mention},", embed=embed)
                                 else:

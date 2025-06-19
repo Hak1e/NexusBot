@@ -1,10 +1,8 @@
-from contextlib import asynccontextmanager
-
-import disnake
 import os
-from dotenv import load_dotenv
-import asyncpg
 import typing
+
+import asyncpg
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -29,7 +27,6 @@ class Database:
         if not self.is_closed:
             await self._pool.close()
             self.is_closed = True
-
 
     def get_pool(self):
         return self._pool

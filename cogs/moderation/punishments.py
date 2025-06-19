@@ -1,5 +1,5 @@
-import disnake
-from disnake.ext import commands
+import discord
+from discord.ext import commands
 from core.bot import Nexus
 import asyncpg
 
@@ -11,8 +11,8 @@ class Punishments(commands.Cog):
 
     @commands.slash_command()
     @commands.has_permissions(moderate_members=True)
-    async def mute(self, ctx: disnake.CommandInteraction,
-                   member: disnake.Member, reason=None):
+    async def mute(self, ctx: discord.ApplicationContext,
+                   member: discord.Member, reason=None):
         """Замьютить участника"""
         query = ("SELECT id "
                  "FROM guild_mute_role "
@@ -29,8 +29,8 @@ class Punishments(commands.Cog):
 
     @commands.slash_command()
     @commands.has_permissions(moderate_members=True)
-    async def unmute(self, ctx: disnake.CommandInteraction,
-                     member: disnake.Member, reason=None):
+    async def unmute(self, ctx: discord.ApplicationContext,
+                     member: discord.Member, reason=None):
         """Разамьютить участника"""
         query = ("SELECT id "
                  "FROM guild_mute_role "
