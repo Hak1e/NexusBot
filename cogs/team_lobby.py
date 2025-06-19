@@ -125,6 +125,7 @@ class BaseDashboardButtons(discord.ui.View):
         if not await self.is_channel_author(ctx):
             await ctx.respond("Вы можете использовать кнопки только в своём канале", ephemeral=True)
             return
+
         members = [member for member in ctx.channel.members if member != ctx.author]
         if not members:
             await ctx.respond("В канале никого, кроме Вас", ephemeral=True)

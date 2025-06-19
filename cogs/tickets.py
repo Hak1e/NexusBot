@@ -44,6 +44,10 @@ class ModalWindow(Modal):
         pool,
         ticket_purpose,
     ):
+    def __init__(self, ctx,
+                 description, description_placeholder,
+                 button_category, title,
+                 pool, ticket_purpose):
         self.button_category = button_category
         self.pool = pool
         self.description_custom_id = f"desc-{ctx.id}"
@@ -55,6 +59,8 @@ class ModalWindow(Modal):
                 style=discord.TextInputStyle.long,
                 custom_id=f"desc-{ctx.id}",
             )
+            disnake.ui.TextInput(label=description, placeholder=description_placeholder,
+                                 style=disnake.TextInputStyle.long, custom_id=f"desc-{ctx.id}")
         ]
         super().__init__(
             title=title,
