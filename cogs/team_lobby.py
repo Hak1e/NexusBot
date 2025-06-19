@@ -125,6 +125,7 @@ class BaseDashboardButtons(disnake.ui.View):
         if not await self.is_channel_author(ctx):
             await ctx.send("Вы можете использовать кнопки только в своём канале", ephemeral=True)
             return
+
         members = [member for member in ctx.channel.members if member != ctx.author]
         if not members:
             await ctx.send("В канале никого, кроме Вас", ephemeral=True)
@@ -139,7 +140,15 @@ class BaseDashboardButtons(disnake.ui.View):
             return
         channel: disnake.VoiceChannel = ctx.channel  # type: ignore
         members = []
+
+        query = ("SELECT id "
+                 "FROM guild_mute_role "
+                 "WHERE guild_id = $1")
+        muted_role_id = await self.pool.fetchval(query, ctx.guild.id)
+
         for value, permission in channel.overwrites.items():
+            if value.id == muted_role_id:
+                continue
             if permission.connect is False:
                 members.append(value)
         if not members:
